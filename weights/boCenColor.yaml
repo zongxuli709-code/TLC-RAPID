@@ -1,0 +1,38 @@
+# 数据集配置文件
+
+
+# Train/val/test sets as 1) dir: path/to/imgs, 2) file: path/to/imgs.txt, or 3) list: [path/to/imgs1, path/to/imgs2, ..]
+path: D:\\DataSet\\薄层色谱\\20250429\\YOLOData # dataset root dir
+train: train # train images (relative to 'path') 128 images
+val: val # val images (relative to 'path') 128 images
+
+# 类别
+nc: 27  # 类别数
+names: ['1',
+'black none',
+'black q',
+'black s',
+'blue none',
+'blue q',
+'blue s',
+'brown none',
+'brown q',
+'brown s',
+'green q',
+'green s',
+'orange none',
+'orange q',
+'pink none',
+'pink q',
+'pink s',
+'purple q',
+'purple s',
+'red none',
+'red q',
+'red s',
+'white q',
+'white s',
+'yellow none',
+'yellow q',
+'yellow s'
+]  # 类别名称列表

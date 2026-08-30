@@ -1,0 +1,16 @@
+# TLC-RAPID
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+build/
+dist/
+release/
+runs/predict-seg/exp*/
+.idea/
+.vscode/
+*.log
+error_log.txt
+weights/*.pt
+!weights/.gitkeep

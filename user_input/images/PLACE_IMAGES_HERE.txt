@@ -1,0 +1,6 @@
+Place your TLC images in this folder (.jpg, .png, .bmp, .tif).
+
+Then edit standard concentrations in:
+  user_input/standard_concentrations.csv
+
+Run TLC-RAPID.exe or: python run_analysis.py
