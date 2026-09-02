@@ -8,9 +8,13 @@ build/
 dist/
 release/
 runs/predict-seg/exp*/
+user_input/images/*
+!user_input/images/PLACE_IMAGES_HERE.txt
 .idea/
 .vscode/
 *.log
+build_log.txt
+run_log.txt
 error_log.txt
 weights/*.pt
 !weights/.gitkeep

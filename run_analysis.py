@@ -129,13 +129,33 @@ def run_analysis(*, interactive: bool = True) -> int:
     engine = _load_engine()
     _log("Analysis started.")
     print("Analysis in progress...\n")
-    engine.run(concentrations_by_image=concentrations_by_image, **settings)
+    summary = engine.run(concentrations_by_image=concentrations_by_image, **settings)
+    if not isinstance(summary, dict):
+        raise RuntimeError("Analysis engine did not return a run summary")
 
-    print_done(ROOT)
-    _log("Analysis finished.")
+    exit_code = int(summary.get("exit_code", 1))
+    successful = int(summary.get("successful_images", 0))
+    failed = int(summary.get("failed_images", 0))
+    excel_path = summary.get("excel_path", "")
+
+    if exit_code == 0:
+        print_done(ROOT)
+        _log(f"Analysis finished successfully: {successful} image(s). Results={excel_path}")
+    elif exit_code == 2:
+        print(
+            f"\n[Warning] Analysis partially completed: {successful} image(s) succeeded, "
+            f"{failed} image(s) failed."
+        )
+        print(f"Review the Image_Status sheet in: {excel_path}")
+        _log(f"Analysis partially completed: successful={successful}, failed={failed}, results={excel_path}")
+    else:
+        print(f"\n[Analysis failed] No image was quantified successfully ({failed} failed).")
+        print(f"Review the Image_Status sheet in: {excel_path}")
+        _log(f"Analysis failed: successful={successful}, failed={failed}, results={excel_path}")
+
     if interactive:
         pause_before_exit()
-    return 0
+    return exit_code
 
 
 def main(argv: list[str] | None = None) -> int:

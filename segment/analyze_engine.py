@@ -2108,18 +2108,22 @@ def run(
 
     try:
         standard_conc = [float(x.strip()) for x in standard_concentrations.split(",")]
-        if len(standard_conc) != standard_num:
-            LOGGER.warning(
-                f"Concentration count ({len(standard_conc)}) != standard_num ({standard_num}); using first {min(len(standard_conc), standard_num)} values")
-            standard_conc = standard_conc[:standard_num]
+    except (TypeError, ValueError) as e:
+        raise ValueError(f"Failed to parse standard concentrations: {e}") from e
 
-        # 验证浓度精度
-        for i, conc in enumerate(standard_conc):
-            if abs(conc - round(conc, 10)) > 1e-10:  # 检查是否支持高精度
-                LOGGER.info(f"Standard {i + 1}: concentration = {conc:.10f}")
-    except Exception as e:
-        LOGGER.error(f"Failed to parse standard concentrations: {e}")
-        standard_conc = [0.1 * (i + 1) for i in range(standard_num)]  # 默认浓度
+    if standard_num < 3 or len(standard_conc) < 3:
+        raise ValueError("At least 3 standard concentrations are required for quantification")
+    if len(standard_conc) != standard_num:
+        raise ValueError(
+            f"Concentration count ({len(standard_conc)}) does not match standard_num ({standard_num})"
+        )
+    if not all(np.isfinite(conc) for conc in standard_conc):
+        raise ValueError("Standard concentrations must all be finite numbers")
+
+    # 验证浓度精度
+    for i, conc in enumerate(standard_conc):
+        if abs(conc - round(conc, 10)) > 1e-10:  # 检查是否支持高精度
+            LOGGER.info(f"Standard {i + 1}: concentration = {conc:.10f}")
 
     # Directories
     save_dir = increment_path(Path(project) / name, exist_ok=exist_ok)  # increment run
@@ -2165,6 +2169,7 @@ def run(
     seen, windows, dt = 0, [], (Profile(device=device), Profile(device=device), Profile(device=device))
 
     all_results = []
+    image_statuses = []
 
     for path, im, im0s, vid_cap, s in dataset:
         im0 = im0s.copy()
@@ -2200,6 +2205,13 @@ def run(
                 p, im0, frame = path, im0s.copy(), getattr(dataset, "frame", 0)
 
             p = Path(p)  # to Path
+            image_status = {
+                "Image": p.name,
+                "Detection_Status": "not_run",
+                "Quantification_Status": "failed",
+                "Spot_Count": 0,
+                "Error_Message": "",
+            }
             save_path = str(save_dir / p.name)  # im.jpg
             txt_path = str(save_dir / "labels" / p.stem) + ("" if dataset.mode == "image" else f"_{frame}")  # im.txt
             s += "%gx%g " % im.shape[2:]  # print string
@@ -2207,6 +2219,7 @@ def run(
             annotator = Annotator(im0, line_width=line_thickness, example=str(names))
 
             if len(det):
+                image_status["Detection_Status"] = "detected"
                 if retina_masks:
                     # scale bbox first the crop masks
                     det[:, :4] = scale_boxes(im.shape[2:], det[:, :4], im0.shape).round()  # rescale boxes to im0 size
@@ -2361,6 +2374,7 @@ def run(
                 spots_results = sorted(spots_results, key=lambda x: x["X_Position"])
                 for new_idx, item in enumerate(spots_results):
                     item["Spot_Index"] = new_idx
+                image_status["Spot_Count"] = len(spots_results)
 
                 # 一维峰面积（色谱峰思路）：在最终斑点列表上统一计算
                 if spots_results:
@@ -2440,6 +2454,8 @@ def run(
                         result["Calibration_Y_Axis"] = image_y_axis_type
                         result["Response_Axis_Source"] = axis_source
                         result["Imaging_Mode"] = imaging_mode
+                        result["Quantification_Status"] = "pending"
+                        result["Error_Message"] = ""
 
                     try:
                         calibration_params, r_squared = calculate_calibration_curve_quadratic(
@@ -2520,8 +2536,30 @@ def run(
                                 f"{flag} ({status})"
                             )
 
+                        image_status["Quantification_Status"] = "success"
+                        for result in spots_results:
+                            result["Quantification_Status"] = "success"
+
                     except Exception as e:
-                        LOGGER.error(f"Calibration failed: {e}")
+                        error_message = f"{type(e).__name__}: {e}"
+                        image_status["Quantification_Status"] = "failed"
+                        image_status["Error_Message"] = error_message
+                        for result in spots_results:
+                            result["Quantification_Status"] = "failed"
+                            result["Error_Message"] = error_message
+                        LOGGER.error(f"Calibration failed for [{p.name}]: {error_message}")
+
+                else:
+                    error_message = (
+                        f"Found {len(spots_results)} spot(s), but quantification requires "
+                        f"at least {image_standard_num} standards plus 1 sample"
+                    )
+                    image_status["Quantification_Status"] = "failed"
+                    image_status["Error_Message"] = error_message
+                    for result in spots_results:
+                        result["Quantification_Status"] = "failed"
+                        result["Error_Message"] = error_message
+                    LOGGER.error(f"Quantification failed for [{p.name}]: {error_message}")
 
                 # 可视化：在图像上标注斑点序号和类型
                 for result in spots_results:
@@ -2578,6 +2616,15 @@ def run(
                     if save_crop:
                         save_one_box(xyxy, imc, file=save_dir / "crops" / names[c] / f"{p.stem}.jpg", BGR=True)
 
+            else:
+                error_message = "No spots detected; manual marking was not available for an empty detection result"
+                image_status["Detection_Status"] = "no_detections"
+                image_status["Quantification_Status"] = "failed"
+                image_status["Error_Message"] = error_message
+                LOGGER.error(f"Analysis failed for [{p.name}]: {error_message}")
+
+            image_statuses.append(image_status)
+
             # Stream results
             im0 = annotator.result()
             if view_img:
@@ -2618,28 +2665,32 @@ def run(
         s = f"\n{len(list(save_dir.glob('labels/*.txt')))} labels saved to {save_dir / 'labels'}" if save_txt else ""
         LOGGER.info(f"Results saved to {colorstr('bold', save_dir)}{s}")
 
-    if all_results:
-        df = pd.DataFrame(all_results)
-        # 按图像名称和斑点索引排序
-        df = df.sort_values(['Image', 'Spot_Index'])
+    excel_path = save_dir / "quantitative_analysis_all_images.xlsx"
+    df = pd.DataFrame(all_results)
+    status_df = pd.DataFrame(image_statuses)
 
-        # 设置pandas显示选项以确保高精度
-        pd.set_option('display.float_format', '{:.10f}'.format)
+    with pd.ExcelWriter(excel_path, engine="openpyxl") as writer:
+        if not df.empty:
+            # 按图像名称和斑点索引排序
+            df = df.sort_values(['Image', 'Spot_Index'])
 
-        # 对于浓度列，确保高精度保存
-        if 'Known_Concentration' in df.columns:
-            df['Known_Concentration'] = df['Known_Concentration'].astype(float)
-        if 'Calculated_Concentration' in df.columns:
-            df['Calculated_Concentration'] = df['Calculated_Concentration'].astype(float)
+            # 设置pandas显示选项以确保高精度
+            pd.set_option('display.float_format', '{:.10f}'.format)
 
-        # 保存详细结果到Excel；浓度关键列加粗，便于查看
-        excel_path = save_dir / "quantitative_analysis_all_images.xlsx"
-        with pd.ExcelWriter(excel_path, engine="openpyxl") as writer:
-            df.to_excel(writer, index=False, float_format="%.10f")
+            # 对于浓度列，确保高精度保存
+            if 'Known_Concentration' in df.columns:
+                df['Known_Concentration'] = df['Known_Concentration'].astype(float)
+            if 'Calculated_Concentration' in df.columns:
+                df['Calculated_Concentration'] = df['Calculated_Concentration'].astype(float)
+
+            df.to_excel(writer, sheet_name="Results", index=False, float_format="%.10f")
+        status_df.to_excel(writer, sheet_name="Image_Status", index=False)
+
+        if not df.empty:
             try:
                 from openpyxl.styles import Font
 
-                ws = writer.sheets.get("Sheet1") or next(iter(writer.sheets.values()))
+                ws = writer.sheets["Results"]
                 bold = Font(bold=True)
                 highlight_cols = {"Known_Concentration", "Calculated_Concentration"}
                 for col_idx, col_name in enumerate(df.columns, start=1):
@@ -2649,8 +2700,9 @@ def run(
                         ws.cell(row=row_idx, column=col_idx).font = bold
             except Exception as e:
                 LOGGER.warning(f"Could not bold concentration columns in Excel: {e}")
-        LOGGER.info(f"Saved quantitative analysis to {excel_path}")
+    LOGGER.info(f"Saved quantitative analysis status to {excel_path}")
 
+    if not df.empty:
         # 打印每个图像的斑点顺序和灰度值用于验证
         print("\n=== Spot order and gray values ===")
         for image_name in df['Image'].unique():
@@ -2671,6 +2723,31 @@ def run(
 
     if update:
         strip_optimizer(weights[0])  # update model (to fix SourceChangeWarning)
+
+    successful_images = sum(
+        status.get("Quantification_Status") == "success" for status in image_statuses
+    )
+    failed_images = len(image_statuses) - successful_images
+    if failed_images == 0 and successful_images > 0:
+        exit_code = 0
+    elif successful_images > 0:
+        exit_code = 2
+    else:
+        exit_code = 1
+
+    summary = {
+        "exit_code": exit_code,
+        "total_images": len(image_statuses),
+        "successful_images": successful_images,
+        "failed_images": failed_images,
+        "excel_path": str(excel_path),
+        "image_statuses": image_statuses,
+    }
+    LOGGER.info(
+        f"Analysis summary: total={summary['total_images']}, successful={successful_images}, "
+        f"failed={failed_images}, exit_code={exit_code}"
+    )
+    return summary
 
 
 def parse_opt():

@@ -1,0 +1,25 @@
+TLC-RAPID Third-Party Notices
+=============================
+
+TLC-RAPID includes or depends on third-party open-source software. The exact
+installed versions used for each Windows build are recorded in the accompanying
+PACKAGE_VERSIONS.txt file.
+
+Major components include:
+
+- Ultralytics YOLOv5 / Ultralytics: GNU Affero General Public License v3.0
+- PyTorch and TorchVision: BSD-style licenses
+- OpenCV: Apache License 2.0
+- NumPy, SciPy, pandas, and scikit-learn: BSD-style licenses
+- Matplotlib: Matplotlib license
+- Pillow: HPND license
+- PyYAML: MIT license
+- PyInstaller: GNU GPL with the PyInstaller bootloader exception
+
+Copyright and license notices embedded in the original packages remain the
+property of their respective authors. Consult the corresponding package source
+distributions for the complete license texts applicable to the versions listed
+in PACKAGE_VERSIONS.txt.
+
+TLC-RAPID source code and its GNU AGPL v3 license are provided in SOURCE_CODE.txt
+and LICENSE.

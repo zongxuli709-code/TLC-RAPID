@@ -19,7 +19,7 @@ Chinese instructions: [README_zh.md](README_zh.md)
 
 **Standard concentrations** (`user_input/standard_concentrations.csv`): enter the amount for each standard spot from left to right; the `(default)` row applies to all images unless overridden by filename.
 
-The number of standards is **not fixed at five**. TLC-RAPID takes the count of populated `standard_*` columns in this table as *N*: the leftmost *N* spots are treated as standards and all spots to their right as samples. The five columns in the template are only an example—for 2, 3, 4, 6, or more standards, add or remove `standard_*` columns and fill in the corresponding amounts.
+The number of standards is **not fixed at five**, but at least **3 standards** are required. TLC-RAPID takes the count of populated `standard_*` columns in this table as *N*: the leftmost *N* spots are treated as standards and all spots to their right as samples. The five columns in the template are only an example—for 3, 4, 6, or more standards, add or remove `standard_*` columns and fill in the corresponding amounts.
 
 | image_filename | standard_1 | standard_2 | … | notes |
 |----------------|------------|------------|---|-------|
@@ -67,7 +67,7 @@ Each run writes to `runs/predict-seg/exp*/` (or the latest run folder). Sample q
 
 Source code is publicly available under the **GNU Affero General Public License v3.0 (AGPL-3.0)**. See [LICENSE](LICENSE).
 
-- Repository: `https://github.com/<YOUR_USERNAME>/TLC-RAPID` *(replace with your public URL after publishing)*
+- Repository: https://github.com/zongxuli709-code/TLC-RAPID
 - The packaged Windows executable (`TLC-RAPID.exe`) may be distributed together with a clear link to this repository so that recipients can obtain the corresponding source code, as required by AGPL-3.0.
 
 ## License

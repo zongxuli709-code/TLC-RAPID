@@ -19,7 +19,7 @@
 
 **标准品浓度**（`user_input/standard_concentrations.csv`）：按斑点从左至右填写各标准品浓度；`(default)` 行为全局默认，也可按图片文件名单独设置。
 
-标准品数量**不固定为 5**。软件以该表中有数值的 `standard_*` 列数为准：最左侧对应个数的斑点判为标准品，其右侧斑点判为待测样品。模板中的五列仅为示例；实际为 2、3、4、6 个或更多标准品时，增删 `standard_*` 列并填入相应浓度即可。
+标准品数量**不固定为 5**，但至少需要 **3 个标准品**。软件以该表中有数值的 `standard_*` 列数为准：最左侧对应个数的斑点判为标准品，其右侧斑点判为待测样品。模板中的五列仅为示例；实际为 3、4、6 个或更多标准品时，增删 `standard_*` 列并填入相应浓度即可。
 
 | image_filename | standard_1 | standard_2 | … | notes |
 |----------------|------------|------------|---|-------|
@@ -67,6 +67,6 @@
 
 本软件源码以 **GNU Affero General Public License v3.0（AGPL-3.0）** 公开发布，详见 [LICENSE](LICENSE) 与英文说明 [README.md](README.md)。
 
-- 源码仓库：`https://github.com/<YOUR_USERNAME>/TLC-RAPID`（上线后请替换为真实公开地址）
+- 源码仓库：https://github.com/zongxuli709-code/TLC-RAPID
 - 可向用户分发 Windows 可执行文件（`TLC-RAPID.exe`），但须同时提供上述仓库链接，以便获取对应源码（AGPL-3.0 要求）
 

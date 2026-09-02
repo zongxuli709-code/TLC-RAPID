@@ -514,11 +514,33 @@ class LauncherApp(tk.Tk):
             self._set_results_enabled(True)
             if messagebox.askyesno("Done", "Analysis finished.\n\nOpen the results folder now?"):
                 self.open_results()
+        elif code == 2:
+            self._analysis_done = True
+            self.ready_label.configure(
+                text="Analysis partially complete. Review Image_Status before using results.",
+                fg=AMBER,
+            )
+            self._append_log(
+                "\nWARNING: Some images could not be quantified.\n"
+                "Open quantitative_analysis_all_images.xlsx and review the Image_Status sheet.\n"
+            )
+            self._set_results_enabled(True)
+            if messagebox.askyesno(
+                "Partial result",
+                "Some images failed quantification.\n\nOpen the results folder and review Image_Status now?",
+            ):
+                self.open_results()
         else:
             self._analysis_done = False
-            self.ready_label.configure(text=f"Analysis stopped (exit code {code}).", fg=RED)
-            self._append_log(f"\nProcess exited with code {code}.\nSee error_log.txt if needed.\n")
-            messagebox.showwarning("Stopped", f"Analysis exited with code {code}.")
+            self.ready_label.configure(text="Analysis failed. No valid quantification was produced.", fg=RED)
+            self._append_log(
+                f"\nProcess exited with code {code}.\n"
+                "Review Image_Status in the result workbook and error_log.txt.\n"
+            )
+            messagebox.showerror(
+                "Analysis failed",
+                "No image was quantified successfully. Review Image_Status and error_log.txt.",
+            )
         self.refresh_status()
 
     def _on_close(self) -> None:

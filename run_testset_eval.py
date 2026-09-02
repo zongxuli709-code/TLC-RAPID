@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import argparse
 import os
 import shutil
 import sys
@@ -16,7 +17,6 @@ ROOT = app_root()
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-TEST_ROOT = Path(r"C:\Users\lizongxu\Desktop\研究生毕业材料\（总总总）lzx-数据汇总\二、测试集")
 OUT_ROOT = ROOT / "runs" / "predict-seg"
 REVIEW_ROOT = OUT_ROOT / "testset-核对图"
 
@@ -108,32 +108,42 @@ def _write_review_sheet(group_dirs: list[tuple[str, Path]]) -> Path:
     return sheet
 
 
-def main() -> None:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Run the TLC-RAPID test-set review workflow")
+    parser.add_argument("test_root", type=Path, help="test-set root containing the configured group folders")
+    parser.add_argument("--weights", type=Path, default=ROOT / "weights" / "best.pt")
+    parser.add_argument("--data", type=Path, default=ROOT / "weights" / "boCenColor.yaml")
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> None:
     import matplotlib
 
     matplotlib.use("Agg")
 
     from segment import analyze_engine as engine
 
-    if not TEST_ROOT.exists():
-        raise FileNotFoundError(f"找不到测试集目录: {TEST_ROOT}")
+    args = parse_args(argv)
+    test_root = args.test_root.expanduser().resolve()
+    weights = args.weights.expanduser().resolve()
+    data = args.data.expanduser().resolve()
 
-    weights = ROOT / "weights" / "best.pt"
+    if not test_root.exists():
+        raise FileNotFoundError(f"找不到测试集目录: {test_root}")
     if not weights.exists():
-        weights = Path(r"C:\Users\lizongxu\Desktop\weights\best.pt")
-    data = ROOT / "weights" / "boCenColor.yaml"
+        raise FileNotFoundError(f"找不到模型权重: {weights}")
     if not data.exists():
-        data = Path(r"C:\Users\lizongxu\Desktop\weights\boCenColor.yaml")
+        raise FileNotFoundError(f"找不到数据配置: {data}")
 
     print("=" * 60)
     print("测试集批量检测（关闭手动补框，结果供人工核对）")
-    print(f"测试集: {TEST_ROOT}")
+    print(f"测试集: {test_root}")
     print(f"权重: {weights}")
     print("=" * 60)
 
     group_dirs: list[tuple[str, Path]] = []
     for group in GROUPS:
-        source = TEST_ROOT / group["folder"]
+        source = test_root / group["folder"]
         if not source.exists():
             print(f"[跳过] 不存在: {source}")
             continue

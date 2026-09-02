@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import math
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -194,11 +195,12 @@ def _parse_value(raw: Any) -> Any:
     if not text:
         return None
     try:
-        if "." in text:
-            return float(text)
         return int(text)
     except ValueError:
-        return text
+        try:
+            return float(text)
+        except ValueError:
+            return text
 
 
 def _pick_column(columns: list[str], candidates: tuple[str, ...]) -> str | None:
@@ -468,6 +470,45 @@ def validate_user_input(user_input_dir: Path | None = None) -> list[ValidationIs
                 ),
             )
         )
+    else:
+        try:
+            concentrations_by_image = load_concentrations(user_input_dir)
+        except Exception as e:
+            issues.append(
+                ValidationIssue(
+                    level="error",
+                    code="concentrations_invalid",
+                    title=f"Cannot read standard concentrations: {e}",
+                    path=conc_path,
+                    next_steps=("Correct the concentration table and try again",),
+                )
+            )
+        else:
+            for image_name, concentrations in concentrations_by_image.items():
+                label = "(default)" if image_name == "_default" else image_name
+                if len(concentrations) < 3:
+                    issues.append(
+                        ValidationIssue(
+                            level="error",
+                            code="too_few_standards",
+                            title=f"{label} has fewer than 3 standard concentrations",
+                            path=conc_path,
+                            next_steps=(
+                                "Enter at least 3 standard concentrations from left to right",
+                                "Remove incomplete rows that are not used",
+                            ),
+                        )
+                    )
+                elif not all(math.isfinite(value) for value in concentrations):
+                    issues.append(
+                        ValidationIssue(
+                            level="error",
+                            code="concentrations_not_finite",
+                            title=f"{label} contains NaN or an infinite concentration",
+                            path=conc_path,
+                            next_steps=("Replace every concentration with a finite number",),
+                        )
+                    )
 
     return issues
 

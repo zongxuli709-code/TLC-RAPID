@@ -5,7 +5,7 @@ standard_count,5,Number of reference-standard spots per image
 imaging_mode,auto,auto | 366nm | visible | 254nm
 y_axis_type,sum_od,Legacy; imaging_mode selects IGI or IOD
 transform_type,auto,Legacy parameter
-quantification_method,isotonic,isotonic (default) | quadratic (paper reproduction)
+quantification_method,quadratic,isotonic (default) | quadratic (paper reproduction)
 roi_width,130,Analysis ROI width in pixels
 roi_height,35,Analysis ROI height in pixels
 confidence_threshold,0.15,Detection confidence threshold
