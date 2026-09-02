@@ -166,10 +166,13 @@ foreach ($zip in @($SourceZip, $WindowsZip)) {
 Compress-Archive -LiteralPath $SourceStage -DestinationPath $SourceZip -CompressionLevel Optimal
 Compress-Archive -LiteralPath $WindowsStage -DestinationPath $WindowsZip -CompressionLevel Optimal
 
-$topManifest = @(
-    "{0}  {1}" -f (Get-FileHash -LiteralPath $SourceZip -Algorithm SHA256).Hash, (Split-Path $SourceZip -Leaf),
-    "{0}  {1}" -f (Get-FileHash -LiteralPath $WindowsZip -Algorithm SHA256).Hash, (Split-Path $WindowsZip -Leaf)
-)
+$topManifest = @()
+$topManifest += "{0}  {1}" -f (
+    Get-FileHash -LiteralPath $SourceZip -Algorithm SHA256
+).Hash, (Split-Path $SourceZip -Leaf)
+$topManifest += "{0}  {1}" -f (
+    Get-FileHash -LiteralPath $WindowsZip -Algorithm SHA256
+).Hash, (Split-Path $WindowsZip -Leaf)
 [System.IO.File]::WriteAllLines((Join-Path $ReleaseRoot "SHA256SUMS.txt"), $topManifest, [System.Text.UTF8Encoding]::new($false))
 
 Remove-Item -LiteralPath $StagingRoot -Recurse -Force
