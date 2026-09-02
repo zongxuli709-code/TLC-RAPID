@@ -17,6 +17,14 @@ import traceback
 from datetime import datetime
 from pathlib import Path
 
+from app_metadata import (
+    APP_LICENSE,
+    APP_NAME,
+    APP_VERSION,
+    COPYRIGHT_NOTICE,
+    SOURCE_URL,
+    get_git_commit,
+)
 from app_paths import app_root
 
 ROOT = app_root()
@@ -78,7 +86,10 @@ def _load_engine():
 def run_analysis(*, interactive: bool = True) -> int:
     """Run quantification. Returns process exit code."""
     print_banner()
-    _log(f"Start ROOT={ROOT} frozen={getattr(sys, 'frozen', False)}")
+    _log(
+        f"Start version={APP_VERSION} commit={get_git_commit(ROOT)} "
+        f"ROOT={ROOT} frozen={getattr(sys, 'frozen', False)}"
+    )
 
     print_checking()
     issues = validate_user_input()
@@ -112,7 +123,7 @@ def run_analysis(*, interactive: bool = True) -> int:
         weights=Path(settings["weights"]),
         standard_concentrations=settings.get("standard_concentrations", ""),
         standard_num=int(settings.get("standard_num", 0)),
-        quantification_method=settings.get("quantification_method", "isotonic"),
+        quantification_method=settings.get("quantification_method", "quadratic"),
         imaging_mode=settings.get("imaging_mode", "auto"),
         per_image_conc=concentrations_by_image,
     )
@@ -160,6 +171,19 @@ def run_analysis(*, interactive: bool = True) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
+
+    if "--version" in args:
+        print(f"{APP_NAME} {APP_VERSION} ({get_git_commit(ROOT)})")
+        return 0
+
+    if "--license" in args:
+        print(f"{APP_NAME} {APP_VERSION}")
+        print(COPYRIGHT_NOTICE)
+        print(f"License: {APP_LICENSE}")
+        print("This program comes with ABSOLUTELY NO WARRANTY.")
+        print(f"Source: {SOURCE_URL}")
+        print(f"Full license: {ROOT / 'LICENSE'}")
+        return 0
 
     if "--cli" in args:
         return run_analysis(interactive=True)

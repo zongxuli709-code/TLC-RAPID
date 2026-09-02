@@ -4,10 +4,11 @@ __pycache__/
 *.egg-info/
 .venv/
 venv/
+.license_downloads/
 build/
 dist/
 release/
-runs/predict-seg/exp*/
+runs/
 user_input/images/*
 !user_input/images/PLACE_IMAGES_HERE.txt
 .idea/

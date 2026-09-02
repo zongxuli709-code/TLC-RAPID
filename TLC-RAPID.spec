@@ -32,6 +32,7 @@ hiddenimports = [
     "utils.load_user_config",
     "utils.console_ui",
     "utils.launcher_gui",
+    "app_metadata",
     "tkinter",
     "tkinter.ttk",
     "tkinter.messagebox",

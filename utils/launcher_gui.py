@@ -11,6 +11,7 @@ import tkinter as tk
 from pathlib import Path
 from tkinter import messagebox, ttk
 
+from app_metadata import APP_LICENSE, APP_VERSION, COPYRIGHT_NOTICE, SOURCE_URL, get_git_commit
 from app_paths import app_root
 from utils.load_user_config import (
     USER_INPUT_DIR,
@@ -44,8 +45,8 @@ IMAGING_CHOICES = (
     ("auto", ""),  # no hint text
 )
 METHOD_CHOICES = (
-    ("isotonic", ""),
     ("quadratic", ""),
+    ("isotonic", ""),
 )
 
 
@@ -145,7 +146,7 @@ class StepCard:
 class LauncherApp(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
-        self.title("TLC-RAPID")
+        self.title(f"TLC-RAPID v{APP_VERSION}")
         self.geometry("740x680")
         self.minsize(660, 600)
         self.configure(bg=BG)
@@ -156,7 +157,7 @@ class LauncherApp(tk.Tk):
 
         settings = load_settings()
         self.imaging_var = tk.StringVar(value=str(settings.get("imaging_mode", "auto")))
-        self.method_var = tk.StringVar(value=str(settings.get("quantification_method", "isotonic")))
+        self.method_var = tk.StringVar(value=str(settings.get("quantification_method", "quadratic")))
 
         self._build()
         self.refresh_status()
@@ -171,7 +172,7 @@ class LauncherApp(tk.Tk):
         header.pack(fill="x")
         tk.Label(
             header,
-            text="TLC-RAPID",
+            text=f"TLC-RAPID v{APP_VERSION}",
             font=("Segoe UI", 18, "bold"),
             fg="white",
             bg=HEADER_BG,
@@ -183,6 +184,9 @@ class LauncherApp(tk.Tk):
             fg="#d6e4f0",
             bg=HEADER_BG,
         ).pack(anchor="w", padx=16, pady=(0, 12))
+        ttk.Button(header, text="License / About", command=self.show_about).place(
+            relx=1.0, x=-16, y=16, anchor="ne"
+        )
 
         body = tk.Frame(self, bg=BG)
         body.pack(fill="both", expand=True, **pad)
@@ -285,6 +289,20 @@ class LauncherApp(tk.Tk):
             body, text=tip, font=("Segoe UI", 9), fg="#666666", bg=BG, wraplength=700, justify="left"
         ).pack(anchor="w", pady=(2, 0))
 
+    def show_about(self) -> None:
+        """Display the AGPL appropriate legal notice from the interactive UI."""
+        messagebox.showinfo(
+            "License / About TLC-RAPID",
+            f"TLC-RAPID v{APP_VERSION}\n"
+            f"Source commit: {get_git_commit(ROOT)}\n\n"
+            f"{COPYRIGHT_NOTICE}\n"
+            f"License: {APP_LICENSE}\n\n"
+            "This program comes with ABSOLUTELY NO WARRANTY. You may convey it "
+            "under the GNU Affero General Public License v3.\n\n"
+            f"Source code: {SOURCE_URL}\n"
+            f"Full license: {ROOT / 'LICENSE'}",
+        )
+
     def _set_results_enabled(self, enabled: bool) -> None:
         self.results_btn.configure(state="normal" if enabled else "disabled")
 
@@ -344,7 +362,7 @@ class LauncherApp(tk.Tk):
             if self.imaging_var.get() not in {c[0] for c in IMAGING_CHOICES}:
                 self.imaging_var.set(str(settings.get("imaging_mode", "auto")))
             if self.method_var.get() not in {c[0] for c in METHOD_CHOICES}:
-                self.method_var.set(str(settings.get("quantification_method", "isotonic")))
+                self.method_var.set(str(settings.get("quantification_method", "quadratic")))
             self._update_option_hints()
 
         # Step 3 is always configurable; mark ready when steps 1-2 allow start

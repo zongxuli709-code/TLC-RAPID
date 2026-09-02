@@ -108,22 +108,87 @@ def _write_review_sheet(group_dirs: list[tuple[str, Path]]) -> Path:
     return sheet
 
 
+def summarize_review_sheet(sheet: Path, output: Path | None = None) -> Path:
+    """Calculate reproducible detection metrics from a completed review sheet."""
+    import pandas as pd
+
+    sheet = Path(sheet)
+    if not sheet.is_file():
+        raise FileNotFoundError(f"找不到人工核对表: {sheet}")
+
+    df = pd.read_csv(sheet, encoding="utf-8-sig")
+    required = ("组别", "TP对了", "FP多检", "FN漏检")
+    missing = [column for column in required if column not in df.columns]
+    if missing:
+        raise ValueError(f"人工核对表缺少列: {', '.join(missing)}")
+
+    numeric_columns = ("TP对了", "FP多检", "FN漏检")
+    numeric = df.loc[:, numeric_columns].apply(pd.to_numeric, errors="coerce")
+    completed = numeric.notna().all(axis=1)
+    if not completed.any():
+        raise ValueError("人工核对表尚无完整的 TP / FP / FN 记录")
+
+    reviewed = df.loc[completed, ["组别"]].copy()
+    reviewed.loc[:, numeric_columns] = numeric.loc[completed, numeric_columns]
+    values = reviewed.loc[:, numeric_columns].to_numpy(dtype=float)
+    if (values < 0).any() or not (values == values.astype(int)).all():
+        raise ValueError("TP / FP / FN 必须是非负整数")
+    reviewed.loc[:, numeric_columns] = values.astype(int)
+
+    def metric_row(group_name: str, group_df: pd.DataFrame) -> dict[str, float | int | str]:
+        tp = int(group_df["TP对了"].sum())
+        fp = int(group_df["FP多检"].sum())
+        fn = int(group_df["FN漏检"].sum())
+        precision = tp / (tp + fp) if tp + fp else 0.0
+        recall = tp / (tp + fn) if tp + fn else 0.0
+        f1 = 2 * precision * recall / (precision + recall) if precision + recall else 0.0
+        return {
+            "Group": group_name,
+            "Reviewed_Images": int(len(group_df)),
+            "TP": tp,
+            "FP": fp,
+            "FN": fn,
+            "Precision": precision,
+            "Recall": recall,
+            "F1": f1,
+        }
+
+    rows = [metric_row(str(group), group_df) for group, group_df in reviewed.groupby("组别", sort=True)]
+    rows.append(metric_row("Overall", reviewed))
+    summary = pd.DataFrame(rows)
+    output = Path(output) if output else sheet.with_name("metrics_summary.csv")
+    summary.to_csv(output, index=False, encoding="utf-8-sig", float_format="%.6f")
+    return output
+
+
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run the TLC-RAPID test-set review workflow")
-    parser.add_argument("test_root", type=Path, help="test-set root containing the configured group folders")
+    parser.add_argument("test_root", type=Path, nargs="?", help="test-set root containing the configured group folders")
     parser.add_argument("--weights", type=Path, default=ROOT / "weights" / "best.pt")
     parser.add_argument("--data", type=Path, default=ROOT / "weights" / "boCenColor.yaml")
+    parser.add_argument(
+        "--summarize-review",
+        type=Path,
+        help="calculate Precision, Recall, and F1 from a completed manual review CSV without running inference",
+    )
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> None:
+    args = parse_args(argv)
+    if args.summarize_review:
+        summary = summarize_review_sheet(args.summarize_review.expanduser().resolve())
+        print(f"指标汇总已保存: {summary}")
+        return
+    if args.test_root is None:
+        raise SystemExit("test_root is required unless --summarize-review is used")
+
     import matplotlib
 
     matplotlib.use("Agg")
 
     from segment import analyze_engine as engine
 
-    args = parse_args(argv)
     test_root = args.test_root.expanduser().resolve()
     weights = args.weights.expanduser().resolve()
     data = args.data.expanduser().resolve()
@@ -165,6 +230,7 @@ def main(argv: list[str] | None = None) -> None:
             fixed_width=group["fixed_width"],
             fixed_height=group["fixed_height"],
             imaging_mode=group.get("imaging_mode", "auto"),
+            quantification_method="quadratic",
             view_img=False,
             manual_mark=False,
             save_txt=True,

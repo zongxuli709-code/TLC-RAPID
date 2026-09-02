@@ -46,6 +46,8 @@ from scipy import stats
 
 import torch
 
+from app_metadata import build_provenance
+
 FILE = Path(__file__).resolve()
 if getattr(sys, "frozen", False):
     ROOT = Path(sys.executable).resolve().parent
@@ -808,10 +810,10 @@ def select_best_response_axis(standard_results, concentrations,
 
 def calculate_calibration_curve_quadratic(standard_results, standard_concentrations, y_axis_type="sum_od",
                                           y_label: str | None = None,
-                                          quantification_method: str = "isotonic"):
+                                          quantification_method: str = "quadratic"):
     """
     稳健标准曲线：
-    1) 检查左右浓度顺序是否反了（Spearman）
+    1) 检查左右浓度顺序是否疑似录反，但不自动改写实验输入
     2) 用等单调回归保证 响应→浓度 单调
     3) 同时保留二次拟合用于绘图/对照
     """
@@ -841,15 +843,11 @@ def calculate_calibration_curve_quadratic(standard_results, standard_concentrati
         spearman_rev = 0.0
 
     if spearman_rev > 0.65 and spearman_fwd < 0.35 and (spearman_rev - spearman_fwd) > 0.35:
-        concentrations = concentrations[::-1].copy()
-        order_reversed = True
-        print(
-            f"[Warning] Standard concentration order may be reversed: "
-            f"forward Spearman={spearman_fwd:.3f}, reversed={spearman_rev:.3f}. Auto-matched concentrations right-to-left."
+        raise ValueError(
+            "Standard concentration order appears reversed relative to the measured response "
+            f"(forward Spearman={spearman_fwd:.3f}, reversed={spearman_rev:.3f}). "
+            "Verify the left-to-right concentration entries; TLC-RAPID will not relabel standards automatically."
         )
-        for i, result in enumerate(standard_results):
-            result["Known_Concentration"] = float(concentrations[i])
-            result["Concentration_Order_Reversed"] = True
     else:
         print(f"Standard monotonicity: Spearman(conc, response)={spearman_fwd:.3f}")
 
@@ -858,7 +856,7 @@ def calculate_calibration_curve_quadratic(standard_results, standard_concentrati
     y_pred = np.polyval(coefs, concentrations)
     r_squared = float(r2_score(y_values, y_pred)) if len(np.unique(y_values)) > 1 else 0.0
 
-    spearman_used = spearman_rev if order_reversed else spearman_fwd
+    spearman_used = spearman_fwd
     increasing = bool(spearman_used >= 0)
 
     # 等单调：响应 -> 浓度（提高定量稳定性）
@@ -887,7 +885,7 @@ def calculate_calibration_curve_quadratic(standard_results, standard_concentrati
         iso_r2 >= r_squared or r_squared < 0.75 or abs(spearman_used) < 0.8
     )
 
-    method = str(quantification_method or "isotonic").strip().lower()
+    method = str(quantification_method or "quadratic").strip().lower()
     if method == "quadratic":
         use_isotonic = False
     elif method == "isotonic":
@@ -915,7 +913,7 @@ def calculate_calibration_curve_quadratic(standard_results, standard_concentrati
         "conc_max": float(concentrations.max()),
         "y_min": float(y_values.min()),
         "y_max": float(y_values.max()),
-        "spearman": float(spearman_fwd if not order_reversed else spearman_rev),
+        "spearman": float(spearman_fwd),
         "order_reversed": order_reversed,
         "use_isotonic": use_isotonic,
         "isotonic_model": iso if use_isotonic else None,
@@ -1079,7 +1077,7 @@ def calculate_sample_concentrations_quadratic(sample_results, calibration_params
     xs = np.asarray(calibration_params.get("X_original", []), dtype=float)
     ys = np.asarray(calibration_params.get("y_original", []), dtype=float)
     iso = calibration_params.get("isotonic_model")
-    method_mode = str(calibration_params.get("quantification_method", "isotonic")).lower()
+    method_mode = str(calibration_params.get("quantification_method", "quadratic")).lower()
     use_isotonic = method_mode == "isotonic" and bool(calibration_params.get("use_isotonic")) and iso is not None
 
     prefer_interp = method_mode == "quadratic" and (r2 < 0.75)
@@ -1166,7 +1164,7 @@ def plot_calibration_curve_quadratic(standard_results, standard_concentrations, 
     bg_name = "Blue background" if background_type == "blue" else "Other background"
     spearman = calibration_params.get("spearman", None)
     use_isotonic = bool(calibration_params.get("use_isotonic"))
-    quant_mode = str(calibration_params.get("quantification_method", "isotonic")).lower()
+    quant_mode = str(calibration_params.get("quantification_method", "quadratic")).lower()
 
     order = np.argsort(concentrations)
     x_sorted = concentrations[order]
@@ -2073,18 +2071,19 @@ def run(
         manual_mark=True,  # 新增：启用手动矩形补标
         manual_save_json=True,  # 新增：保存手动框选json
         concentrations_by_image=None,  # 新增：按图片名读取浓度（由 run_analysis.py 传入）
-        quantification_method="isotonic",  # isotonic=等单调回归(默认); quadratic=二次反算(论文复现)
+        quantification_method="quadratic",  # quadratic=论文默认; isotonic=等单调回归备选
         imaging_mode="auto",  # auto/366nm/visible/254nm，固定 IGI 或 IOD
 ):
     """Run YOLOv5 segmentation inference on diverse sources including images, videos, directories, and streams."""
     try:
-        from utils.load_user_config import normalize_quantification_method, normalize_imaging_mode
+        from utils.load_user_config import minimum_standard_count, normalize_quantification_method, normalize_imaging_mode
         quantification_method = normalize_quantification_method(quantification_method)
         imaging_mode = normalize_imaging_mode(imaging_mode)
     except Exception:
-        quantification_method = str(quantification_method or "isotonic").strip().lower()
+        quantification_method = str(quantification_method or "quadratic").strip().lower()
         if quantification_method not in ("isotonic", "quadratic"):
-            quantification_method = "isotonic"
+            quantification_method = "quadratic"
+        minimum_standard_count = lambda method: 4 if method == "quadratic" else 3
         imaging_mode = str(imaging_mode or "auto").strip().lower()
 
     source = str(source)
@@ -2111,14 +2110,22 @@ def run(
     except (TypeError, ValueError) as e:
         raise ValueError(f"Failed to parse standard concentrations: {e}") from e
 
-    if standard_num < 3 or len(standard_conc) < 3:
-        raise ValueError("At least 3 standard concentrations are required for quantification")
+    required_standards = minimum_standard_count(quantification_method)
+    if standard_num < required_standards or len(standard_conc) < required_standards:
+        raise ValueError(
+            f"At least {required_standards} distinct standard concentrations are required "
+            f"for {quantification_method} quantification"
+        )
     if len(standard_conc) != standard_num:
         raise ValueError(
             f"Concentration count ({len(standard_conc)}) does not match standard_num ({standard_num})"
         )
     if not all(np.isfinite(conc) for conc in standard_conc):
         raise ValueError("Standard concentrations must all be finite numbers")
+    if any(conc < 0 for conc in standard_conc):
+        raise ValueError("Standard concentrations must be non-negative")
+    if len(set(standard_conc)) != len(standard_conc):
+        raise ValueError("Standard concentrations must be distinct calibration levels")
 
     # 验证浓度精度
     for i, conc in enumerate(standard_conc):
@@ -2669,7 +2676,50 @@ def run(
     df = pd.DataFrame(all_results)
     status_df = pd.DataFrame(image_statuses)
 
+    successful_images = sum(
+        status.get("Quantification_Status") == "success" for status in image_statuses
+    )
+    failed_images = len(image_statuses) - successful_images
+    if failed_images == 0 and successful_images > 0:
+        exit_code = 0
+    elif successful_images > 0:
+        exit_code = 2
+    else:
+        exit_code = 1
+
+    weight_value = weights[0] if isinstance(weights, (list, tuple)) and weights else weights
+    metadata_values = build_provenance(root=ROOT, weights=weight_value, data_config=data)
+    metadata_values.update(
+        {
+            "Analysis_Timestamp": datetime.now().astimezone().isoformat(timespec="seconds"),
+            "Input_Source_Name": Path(source).name,
+            "Input_Images": ", ".join(status.get("Image", "") for status in image_statuses),
+            "Total_Images": len(image_statuses),
+            "Successful_Images": successful_images,
+            "Failed_Images": failed_images,
+            "Exit_Code": exit_code,
+            "Quantification_Method": quantification_method,
+            "Imaging_Mode": imaging_mode,
+            "Standard_Count": standard_num,
+            "Default_Standard_Concentrations": standard_concentrations,
+            "Per_Image_Standard_Concentrations": json.dumps(
+                concentrations_by_image or {}, ensure_ascii=False, sort_keys=True
+            ),
+            "Confidence_Threshold": conf_thres,
+            "NMS_IoU_Threshold": iou_thres,
+            "Image_Size": json.dumps(list(imgsz) if isinstance(imgsz, (list, tuple)) else imgsz),
+            "ROI_Width": fixed_width,
+            "ROI_Height": fixed_height,
+            "Y_Tolerance": y_tolerance,
+            "Manual_Marking_Enabled": manual_mark,
+        }
+    )
+    metadata_df = pd.DataFrame(
+        [{"Field": key, "Value": str(value)} for key, value in metadata_values.items()]
+    )
+
     with pd.ExcelWriter(excel_path, engine="openpyxl") as writer:
+        metadata_df.to_excel(writer, sheet_name="Metadata", index=False)
         if not df.empty:
             # 按图像名称和斑点索引排序
             df = df.sort_values(['Image', 'Spot_Index'])
@@ -2723,17 +2773,6 @@ def run(
 
     if update:
         strip_optimizer(weights[0])  # update model (to fix SourceChangeWarning)
-
-    successful_images = sum(
-        status.get("Quantification_Status") == "success" for status in image_statuses
-    )
-    failed_images = len(image_statuses) - successful_images
-    if failed_images == 0 and successful_images > 0:
-        exit_code = 0
-    elif successful_images > 0:
-        exit_code = 2
-    else:
-        exit_code = 1
 
     summary = {
         "exit_code": exit_code,
@@ -2804,9 +2843,9 @@ def parse_opt():
     parser.add_argument("--transform-type", type=str, default="auto",
                         choices=["none", "log", "sqrt", "reciprocal", "log_log", "power", "auto"],
                         help="data transformation type to enhance linearity")
-    parser.add_argument("--quantification-method", type=str, default="isotonic",
+    parser.add_argument("--quantification-method", type=str, default="quadratic",
                         choices=["isotonic", "quadratic"],
-                        help="concentration back-calculation: isotonic (default) or quadratic (paper reproduction)")
+                        help="concentration back-calculation: quadratic (paper/default) or isotonic (alternative)")
     # 新增：遮盖水平线外干扰斑点后二次推理（默认启用）
     parser.add_argument("--mask-interference", action="store_true", default=True,
                         help="mask spots outside the reference horizontal band and re-run inference (default: True)")

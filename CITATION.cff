@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If you use TLC-RAPID in published work, please cite the software and the associated paper."
+type: software
+title: "TLC-RAPID: automated TLC spot detection and quantitative analysis"
+version: 1.0.0
+date-released: 2026-09-02
+authors:
+  - family-names: Li
+    given-names: Zongxu
+repository-code: "https://github.com/zongxuli709-code/TLC-RAPID"
+url: "https://github.com/zongxuli709-code/TLC-RAPID"
+license: AGPL-3.0-only
+keywords:
+  - thin-layer chromatography
+  - computer vision
+  - quantitative analysis
+  - instance segmentation

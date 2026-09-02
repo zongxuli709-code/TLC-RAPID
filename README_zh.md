@@ -14,12 +14,28 @@
 6. 结束后在界面中打开结果目录（或查看 `runs/predict-seg/`）
 
 > 纯命令行模式：`TLC-RAPID.exe --cli`
+>
+> 查看版本与源码提交：`TLC-RAPID.exe --version`
+>
+> 查看许可证与源码说明：`TLC-RAPID.exe --license`
+
+### 从源码运行
+
+建议使用 Python 3.12 和全新的虚拟环境。训练权重不直接存入 Git 源码；请把正式发布的 `best.pt` 放到 `weights/best.pt`，并按照 [MODEL_CARD.md](MODEL_CARD.md) 核对哈希。
+
+```powershell
+py -3.12 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements-lock.txt
+python -m unittest discover -s tests -v
+python run_analysis.py
+```
 
 ## 分析设置
 
 **标准品浓度**（`user_input/standard_concentrations.csv`）：按斑点从左至右填写各标准品浓度；`(default)` 行为全局默认，也可按图片文件名单独设置。
 
-标准品数量**不固定为 5**，但至少需要 **3 个标准品**。软件以该表中有数值的 `standard_*` 列数为准：最左侧对应个数的斑点判为标准品，其右侧斑点判为待测样品。模板中的五列仅为示例；实际为 3、4、6 个或更多标准品时，增删 `standard_*` 列并填入相应浓度即可。
+标准品数量**不固定为 5**。论文默认的二次拟合流程至少需要 **4 个互不重复的非负标准浓度**；等单调模式至少需要 **3 个**。软件以该表中有数值的 `standard_*` 列数为准：最左侧对应个数的斑点判为标准品，其右侧斑点判为待测样品。模板中的五列仅为示例，可按实际情况增删 `standard_*` 列。
 
 | image_filename | standard_1 | standard_2 | … | notes |
 |----------------|------------|------------|---|-------|
@@ -31,7 +47,7 @@
 | 参数 | 推荐值 | 说明 |
 |------|--------|------|
 | imaging_mode | 366nm / visible / 254nm | 366 nm 荧光板建议设 366nm，勿依赖 auto（四边偏暗或非蓝边时可能误用 IOD） |
-| quantification_method | isotonic | 日常分析；quadratic 复现论文 |
+| quantification_method | quadratic | 论文及模板默认流程；`isotonic` 为等单调备选方法 |
 | confidence_threshold | 0.15 | 检测置信度 |
 
 ## 手动补标
@@ -49,7 +65,7 @@
 
 ## 读取结果
 
-每次分析结果保存在 `runs/predict-seg/exp*/`（或最新一次运行目录）下。样品定量结果在 **`quantitative_analysis_all_images.xlsx`** 中；**`Calculated_Concentration`** 列即为各待测斑点的预测浓度，单位与 `standard_concentrations.csv` 中所填标准品浓度一致。若 **`Out_of_Range`** 为 `True`，表示该点响应或反算浓度超出标准曲线验证范围，所给数值仅供参考。
+每次分析结果保存在 `runs/predict-seg/exp*/`（或最新一次运行目录）下。样品定量结果在 **`quantitative_analysis_all_images.xlsx`** 中；**`Calculated_Concentration`** 列即为各待测斑点的预测浓度，单位与 `standard_concentrations.csv` 中所填标准品浓度一致。新增的 **`Metadata`** 工作表会记录软件版本、源码提交、模型与配置哈希、依赖版本和分析参数，便于追踪与复现。若 **`Out_of_Range`** 为 `True`，表示该点响应或反算浓度超出标准曲线验证范围，所给数值仅供参考。
 
 | 列名 | 含义 |
 |------|------|
@@ -69,4 +85,27 @@
 
 - 源码仓库：https://github.com/zongxuli709-code/TLC-RAPID
 - 可向用户分发 Windows 可执行文件（`TLC-RAPID.exe`），但须同时提供上述仓库链接，以便获取对应源码（AGPL-3.0 要求）
+
+## 投稿与复现材料
+
+- 引用信息：[CITATION.cff](CITATION.cff)
+- 模型范围、哈希和局限：[MODEL_CARD.md](MODEL_CARD.md)
+- 数据集及划分要求：[DATA.md](DATA.md)
+- 固定环境和评测流程：[REPRODUCIBILITY.md](REPRODUCIBILITY.md)
+- Windows 完整解析依赖：[requirements-freeze.txt](requirements-freeze.txt)
+- 版本变更：[CHANGELOG.md](CHANGELOG.md)
+- 投稿与发布核对表：[RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md)
+- 许可证边界：[LICENSING.md](LICENSING.md)
+- 模型权重许可与训练元数据：[MODEL_WEIGHTS.md](MODEL_WEIGHTS.md)
+- 相对 YOLOv5 的修改声明：[MODIFICATIONS.md](MODIFICATIONS.md)
+- 第三方软件许可证：[THIRD_PARTY_NOTICES.txt](THIRD_PARTY_NOTICES.txt)
+
+引用分析结果时，请同时保存结果工作簿中的 `Metadata`、`Image_Status`、输入文件清单和评测真值。
+
+## 许可证
+
+TLC-RAPID 合并源码、Windows 可执行文件和发布的 YOLO 训练权重均按
+**GNU AGPL-3.0-only** 发布。遵守 AGPL（包括提供完整对应源码）时，学术和
+商业使用都可以；若商业客户需要闭源部署，则必须另行取得必要的上游授权，
+当前公开包本身不授予该闭源商业权利。请参阅 [LICENSING.md](LICENSING.md)。
 

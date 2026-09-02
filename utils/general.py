@@ -30,19 +30,20 @@ from zipfile import ZipFile, is_zipfile
 import cv2
 import numpy as np
 import pandas as pd
-import pkg_resources as pkg
 import torch
 import torchvision
 import yaml
+from packaging.version import parse as parse_version
 
-# Import 'ultralytics' package or install if missing
+# Import dependency without mutating the runtime environment.
 try:
     import ultralytics
 
     assert hasattr(ultralytics, "__version__")  # verify package is not directory
-except (ImportError, AssertionError):
-    os.system("pip install -U ultralytics")
-    import ultralytics
+except (ImportError, AssertionError) as exc:
+    raise ImportError(
+        "The 'ultralytics' package is required. Install the pinned project dependencies before running TLC-RAPID."
+    ) from exc
 
 from ultralytics.utils.checks import check_requirements
 
@@ -434,7 +435,7 @@ def check_python(minimum="3.8.0"):
 
 def check_version(current="0.0.0", minimum="0.0.0", name="version ", pinned=False, hard=False, verbose=False):
     """Checks if the current version meets the minimum required version, exits or warns based on parameters."""
-    current, minimum = (pkg.parse_version(x) for x in (current, minimum))
+    current, minimum = (parse_version(x) for x in (current, minimum))
     result = (current == minimum) if pinned else (current >= minimum)  # bool
     s = f"WARNING ⚠️ {name}{minimum} is required by YOLOv5, but {name}{current} is currently installed"  # string
     if hard:

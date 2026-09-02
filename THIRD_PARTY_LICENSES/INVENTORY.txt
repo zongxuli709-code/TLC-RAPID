@@ -1,0 +1,262 @@
+TLC-RAPID v1.0.0 dependency and license inventory
+Generated from the locked Windows release environment.
+
+altgraph 0.17.5
+  License metadata: MIT
+  Homepage: https://altgraph.readthedocs.io
+  License files: ALTGRAPH-0.17.5-LICENSE.txt
+
+certifi 2025.1.31
+  License metadata: MPL-2.0
+  Homepage: https://github.com/certifi/python-certifi
+  License files: CERTIFI-2025.1.31-LICENSE.txt
+
+charset-normalizer 2.0.4
+  License metadata: MIT
+  Homepage: https://github.com/ousret/charset_normalizer
+  License files: CHARSET-NORMALIZER-2.0.4-LICENSE.txt
+
+colorama 0.4.6
+  License metadata: not declared
+  Homepage: not declared
+  License files: COLORAMA-0.4.6-LICENSE-TXT.txt
+
+contourpy 1.2.0
+  License metadata: BSD 3-Clause License
+  Homepage: not declared
+  License files: CONTOURPY-1.2.0-LICENSE.txt
+
+cycler 0.11.0
+  License metadata: BSD
+  Homepage: https://github.com/matplotlib/cycler
+  License files: CYCLER-0.11.0-LICENSE.txt
+
+et-xmlfile 1.1.0
+  License metadata: MIT
+  Homepage: https://foss.heptapod.net/openpyxl/et_xmlfile
+  License files: ET-XMLFILE-1.1.0-ET-XMLFILE-1-1-0-TXT.txt
+
+filelock 3.13.1
+  License metadata: not declared
+  Homepage: not declared
+  License files: FILELOCK-3.13.1-LICENSE.txt
+
+fonttools 4.51.0
+  License metadata: MIT
+  Homepage: http://github.com/fonttools/fonttools
+  License files: FONTTOOLS-4.51.0-LICENSE.txt
+
+fsspec 2024.3.1
+  License metadata: BSD
+  Homepage: https://github.com/fsspec/filesystem_spec
+  License files: FSSPEC-2024.3.1-LICENSE.txt
+
+idna 3.7
+  License metadata: not declared
+  Homepage: not declared
+  License files: IDNA-3.7-LICENSE-MD.txt
+
+Jinja2 3.1.4
+  License metadata: not declared
+  Homepage: not declared
+  License files: JINJA2-3.1.4-LICENSE-TXT.txt
+
+joblib 1.4.2
+  License metadata: BSD 3-Clause
+  Homepage: not declared
+  License files: JOBLIB-1.4.2-LICENSE-TXT.txt
+
+kiwisolver 1.4.4
+  License metadata: =========================
+  Homepage: not declared
+  License files: KIWISOLVER-1.4.4-LICENSE.txt
+
+MarkupSafe 2.1.3
+  License metadata: BSD-3-Clause
+  Homepage: https://palletsprojects.com/p/markupsafe/
+  License files: MARKUPSAFE-2.1.3-LICENSE-RST.txt
+
+matplotlib 3.8.4
+  License metadata: PSF
+  Homepage: https://matplotlib.org
+  License files: MATPLOTLIB-3.8.4-LICENSE.txt, MATPLOTLIB-3.8.4-LICENSE-AMSFONTS.txt, MATPLOTLIB-3.8.4-LICENSE-BAKOMA.txt, MATPLOTLIB-3.8.4-LICENSE-CARLOGO.txt, MATPLOTLIB-3.8.4-LICENSE-COLORBREWER.txt, MATPLOTLIB-3.8.4-LICENSE-COURIERTEN.txt, MATPLOTLIB-3.8.4-LICENSE-JSXTOOLS-RESIZE-OBSERVER.txt, MATPLOTLIB-3.8.4-LICENSE-QHULL.txt, MATPLOTLIB-3.8.4-LICENSE-QT4-EDITOR.txt, MATPLOTLIB-3.8.4-LICENSE-SOLARIZED.txt, MATPLOTLIB-3.8.4-LICENSE-STIX.txt, MATPLOTLIB-3.8.4-LICENSE-YORICK.txt
+
+mpmath 1.3.0
+  License metadata: BSD
+  Homepage: http://mpmath.org/
+  License files: MPMATH-1.3.0-LICENSE.txt
+
+networkx 3.2.1
+  License metadata: not declared
+  Homepage: not declared
+  License files: NETWORKX-3.2.1-LICENSE-TXT.txt
+
+numpy 1.26.4
+  License metadata: Copyright (c) 2005-2023, NumPy Developers.
+  Homepage: https://numpy.org
+  License files: NUMPY-1.26.4-LICENSE-TXT.txt
+
+opencv-python 4.10.0.84
+  License metadata: Apache 2.0
+  Homepage: https://github.com/opencv/opencv-python
+  License files: OPENCV-PYTHON-4.10.0.84-LICENSE-3RD-PARTY-TXT.txt, OPENCV-PYTHON-4.10.0.84-LICENSE-TXT.txt
+
+openpyxl 3.1.2
+  License metadata: MIT
+  Homepage: https://openpyxl.readthedocs.io
+  License files: OPENPYXL-3.1.2-LICENCE-RST.txt
+
+packaging 23.2
+  License metadata: not declared
+  Homepage: not declared
+  License files: PACKAGING-23.2-LICENSE.txt, PACKAGING-23.2-LICENSE-APACHE.txt, PACKAGING-23.2-LICENSE-BSD.txt
+
+pandas 2.2.2
+  License metadata: BSD 3-Clause License
+  Homepage: https://pandas.pydata.org
+  License files: PANDAS-2.2.2-LICENSE.txt
+
+pefile 2024.8.26
+  License metadata: MIT
+  Homepage: https://github.com/erocarrera/pefile
+  License files: PEFILE-2024.8.26-LICENSE.txt
+
+pillow 10.3.0
+  License metadata: HPND
+  Homepage: not declared
+  License files: PILLOW-10.3.0-LICENSE.txt
+
+psutil 5.9.0
+  License metadata: BSD
+  Homepage: https://github.com/giampaolo/psutil
+  License files: PSUTIL-5.9.0-LICENSE.txt
+
+py-cpuinfo 9.0.0
+  License metadata: MIT
+  Homepage: https://github.com/workhorsy/py-cpuinfo
+  License files: PY-CPUINFO-9.0.0-LICENSE.txt
+
+pyinstaller 6.21.0
+  License metadata: GPLv2-or-later with a special exception which allows to use PyInstaller to build and distribute non-free programs (including commercial ones)
+  Homepage: not declared
+  License files: PYINSTALLER-6.21.0-COPYING-TXT.txt
+
+pyinstaller-hooks-contrib 2026.6
+  License metadata: not declared
+  Homepage: https://github.com/pyinstaller/pyinstaller-hooks-contrib
+  License files: PYINSTALLER-HOOKS-CONTRIB-2026.6-LICENSE.txt
+
+pyparsing 3.0.9
+  License metadata: not declared
+  Homepage: not declared
+  License files: PYPARSING-3.0.9-LICENSE.txt
+
+python-dateutil 2.9.0.post0
+  License metadata: Dual License
+  Homepage: https://github.com/dateutil/dateutil
+  License files: PYTHON-DATEUTIL-2.9.0.post0-LICENSE.txt
+
+pytz 2024.1
+  License metadata: MIT
+  Homepage: http://pythonhosted.org/pytz
+  License files: PYTZ-2024.1-LICENSE-TXT.txt
+
+pywin32-ctypes 0.2.2
+  License metadata: BSD-3-Clause
+  Homepage: https://github.com/enthought/pywin32-ctypes
+  License files: PYWIN32-CTYPES-0.2.2-PYWIN32-CTYPES-0-2-2-TXT.txt
+
+PyYAML 6.0.1
+  License metadata: MIT
+  Homepage: https://pyyaml.org/
+  License files: PYYAML-6.0.1-LICENSE.txt
+
+requests 2.32.2
+  License metadata: Apache-2.0
+  Homepage: https://requests.readthedocs.io
+  License files: REQUESTS-2.32.2-LICENSE.txt
+
+scikit-learn 1.4.2
+  License metadata: new BSD
+  Homepage: https://scikit-learn.org
+  License files: SCIKIT-LEARN-1.4.2-COPYING.txt
+
+scipy 1.13.1
+  License metadata: Copyright (c) 2001-2002 Enthought, Inc. 2003-2024, SciPy Developers.
+  Homepage: https://scipy.org/
+  License files: SCIPY-1.13.1-LICENSE-TXT.txt
+
+seaborn 0.13.2
+  License metadata: not declared
+  Homepage: not declared
+  License files: SEABORN-0.13.2-LICENSE-MD.txt
+
+setuptools 69.5.1
+  License metadata: not declared
+  Homepage: https://github.com/pypa/setuptools
+  License files: SETUPTOOLS-69.5.1-SETUPTOOLS-69-5-1-TXT.txt
+
+six 1.16.0
+  License metadata: MIT
+  Homepage: https://github.com/benjaminp/six
+  License files: SIX-1.16.0-LICENSE.txt
+
+sympy 1.14.0
+  License metadata: BSD
+  Homepage: https://sympy.org
+  License files: SYMPY-1.14.0-LICENSE.txt
+
+threadpoolctl 2.2.0
+  License metadata: BSD-3-Clause
+  Homepage: https://github.com/joblib/threadpoolctl
+  License files: THREADPOOLCTL-2.2.0-LICENSE.txt
+
+torch 2.7.0
+  License metadata: BSD-3-Clause
+  Homepage: https://pytorch.org/
+  License files: TORCH-2.7.0-LICENSE.txt, TORCH-2.7.0-NOTICE.txt
+
+torchvision 0.22.0
+  License metadata: BSD
+  Homepage: https://github.com/pytorch/vision
+  License files: TORCHVISION-0.22.0-LICENSE.txt
+
+tqdm 4.66.4
+  License metadata: MPL-2.0 AND MIT
+  Homepage: not declared
+  License files: TQDM-4.66.4-LICENCE.txt
+
+typing_extensions 4.11.0
+  License metadata: not declared
+  Homepage: not declared
+  License files: TYPING-EXTENSIONS-4.11.0-LICENSE.txt
+
+tzdata 2023.3
+  License metadata: Apache-2.0
+  Homepage: https://github.com/python/tzdata
+  License files: TZDATA-2023.3-LICENSE.txt, TZDATA-2023.3-LICENSE-APACHE.txt
+
+ultralytics 8.3.133
+  License metadata: AGPL-3.0
+  Homepage: not declared
+  License files: ULTRALYTICS-8.3.133-LICENSE.txt
+
+ultralytics-thop 2.0.14
+  License metadata: AGPL-3.0
+  Homepage: not declared
+  License files: ULTRALYTICS-THOP-2.0.14-LICENSE.txt
+
+urllib3 2.2.2
+  License metadata: not declared
+  Homepage: not declared
+  License files: URLLIB3-2.2.2-LICENSE-TXT.txt
+
+Python runtime
+  License files: PYTHON-3.12.4.txt
+
+Tcl/Tk runtime
+  License files: TCL-TK-8.6-LICENSE-TERMS.txt
+
+Ultralytics YOLOv5 (modified source; exact starting revision not recorded)
+  License metadata: GNU AGPL v3
+  License files: ULTRALYTICS-YOLOV5-AGPL-3.0.txt

@@ -1,0 +1,16 @@
+TLC-RAPID
+Copyright (C) 2025-2026 Zongxu Li and TLC-RAPID contributors
+
+TLC-RAPID is free software: you can redistribute it and/or modify it
+under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, version 3 only.
+
+TLC-RAPID is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License
+for more details.
+
+This work incorporates and modifies Ultralytics YOLOv5 source code. Ultralytics
+copyright and license notices in the derived files are retained. See
+MODIFICATIONS.md and THIRD_PARTY_NOTICES.txt.
+

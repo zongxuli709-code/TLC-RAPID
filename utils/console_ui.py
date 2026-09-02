@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from app_metadata import APP_LICENSE, APP_VERSION, SOURCE_URL
 from utils.load_user_config import ValidationIssue
 
 
@@ -19,7 +20,8 @@ def _rel(path: Path | None, root: Path) -> str:
 
 def print_banner() -> None:
     print("=" * 60)
-    print("  TLC-RAPID - TLC spot detection and quantification")
+    print(f"  TLC-RAPID v{APP_VERSION} - TLC spot detection and quantification")
+    print(f"  {APP_LICENSE}; no warranty; source: {SOURCE_URL}")
     print("=" * 60)
 
 

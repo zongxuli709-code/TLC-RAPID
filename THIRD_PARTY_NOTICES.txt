@@ -1,25 +1,66 @@
 TLC-RAPID Third-Party Notices
 =============================
 
-TLC-RAPID includes or depends on third-party open-source software. The exact
-installed versions used for each Windows build are recorded in the accompanying
-PACKAGE_VERSIONS.txt file.
+Release: v1.0.0
 
-Major components include:
+TLC-RAPID incorporates or redistributes the components below. Copyrights remain
+with their respective owners. This notice is a convenience; the complete texts
+in THIRD_PARTY_LICENSES/ control for each component.
 
-- Ultralytics YOLOv5 / Ultralytics: GNU Affero General Public License v3.0
-- PyTorch and TorchVision: BSD-style licenses
-- OpenCV: Apache License 2.0
-- NumPy, SciPy, pandas, and scikit-learn: BSD-style licenses
-- Matplotlib: Matplotlib license
-- Pillow: HPND license
-- PyYAML: MIT license
-- PyInstaller: GNU GPL with the PyInstaller bootloader exception
+Bundled or directly imported components
+----------------------------------------
 
-Copyright and license notices embedded in the original packages remain the
-property of their respective authors. Consult the corresponding package source
-distributions for the complete license texts applicable to the versions listed
-in PACKAGE_VERSIONS.txt.
+Component              Version       License / notice file
+Ultralytics YOLOv5      revision TBD  AGPL-3.0; ULTRALYTICS-YOLOV5-AGPL-3.0.txt
+ultralytics             8.3.133       AGPL-3.0; ULTRALYTICS-8.3.133-LICENSE.txt
+PyTorch                 2.7.0         BSD-3-Clause; TORCH-2.7.0-LICENSE.txt
+                                      and TORCH-2.7.0-NOTICE.txt
+TorchVision             0.22.0        BSD; TORCHVISION-0.22.0-LICENSE.txt
+OpenCV Python           4.10.0.84     Apache-2.0 plus third-party notices;
+                                      OPENCV-PYTHON-4.10.0.84-*.txt
+NumPy                   1.26.4        BSD-3-Clause; NUMPY-1.26.4-LICENSE-TXT.txt
+SciPy                   1.13.1        BSD-3-Clause and bundled notices;
+                                      SCIPY-1.13.1-LICENSE-TXT.txt
+pandas                  2.2.2         BSD-3-Clause; PANDAS-2.2.2-LICENSE.txt
+scikit-learn            1.4.2         BSD-3-Clause; SCIKIT-LEARN-1.4.2-COPYING.txt
+Matplotlib              3.8.4         PSF-based and bundled notices;
+                                      MATPLOTLIB-3.8.4-*.txt
+Pillow                  10.3.0        HPND; PILLOW-10.3.0-LICENSE.txt
+PyYAML                  6.0.1         MIT; PYYAML-6.0.1-LICENSE.txt
+openpyxl                3.1.2         MIT; OPENPYXL-3.1.2-LICENCE-RST.txt
+seaborn                 0.13.2        BSD-3-Clause; SEABORN-0.13.2-LICENSE-MD.txt
+Requests                2.32.2        Apache-2.0; REQUESTS-2.32.2-LICENSE.txt
+packaging               23.2          Apache-2.0 or BSD-2-Clause;
+                                      PACKAGING-23.2-*.txt
+tqdm                    4.66.4        MPL-2.0 and MIT; TQDM-4.66.4-LICENCE.txt
+psutil                  5.9.0         BSD-3-Clause; PSUTIL-5.9.0-LICENSE.txt
+Python runtime          3.12.4        PSF License; PYTHON-3.12.4.txt
+Tcl/Tk GUI runtime      8.6           BSD-style terms; TCL-TK-8.6-LICENSE-TERMS.txt
 
-TLC-RAPID source code and its GNU AGPL v3 license are provided in SOURCE_CODE.txt
-and LICENSE.
+Build-time component
+--------------------
+
+PyInstaller 6.21.0 is used to build the Windows package. Its bootloader is
+included in the executable under GPL-2.0-or-later with the PyInstaller special
+exception; see PYINSTALLER-6.21.0-COPYING-TXT.txt. PyInstaller's exception permits
+distribution of the generated executable under TLC-RAPID's license.
+
+Upstream modification notice
+----------------------------
+
+The inference implementation is derived from Ultralytics YOLOv5 source code at
+https://github.com/ultralytics/yolov5. The exact starting commit is not present
+in this Git history or in the model checkpoint and must be recovered from the
+authors' original training records before the final archival submission. See
+MODIFICATIONS.md. No exact commit is claimed until that record is supplied.
+
+Transitive libraries
+--------------------
+
+The frozen Windows package can contain additional transitive libraries used by
+the components above. Their embedded notices remain intact. The release's
+THIRD_PARTY_LICENSES/ directory and the package metadata under `_internal/`
+should be preserved when redistributing the executable directory.
+
+TLC-RAPID itself is licensed under AGPL-3.0-only. See LICENSE, LICENSING.md,
+MODEL_WEIGHTS.md, and SOURCE_CODE.txt.

@@ -42,7 +42,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "confidence_threshold": 0.15,
     "y_tolerance": 60,
     "images_folder": "images",
-    "quantification_method": "isotonic",
+    "quantification_method": "quadratic",
     "imaging_mode": "auto",
 }
 
@@ -103,7 +103,7 @@ class ValidationIssue:
 
 def normalize_quantification_method(value: Any) -> str:
     if value is None:
-        return "isotonic"
+        return "quadratic"
     text = str(value).strip().lower().replace(" ", "")
     aliases = {
         "isotonic": "isotonic",
@@ -124,7 +124,12 @@ def normalize_quantification_method(value: Any) -> str:
         return "quadratic"
     if "单调" in text or "isotonic" in text or "iso" in text:
         return "isotonic"
-    return "isotonic"
+    return "quadratic"
+
+
+def minimum_standard_count(quantification_method: Any) -> int:
+    """Return the minimum defensible number of standards for the selected fit."""
+    return 4 if normalize_quantification_method(quantification_method) == "quadratic" else 3
 
 
 def normalize_imaging_mode(value: Any) -> str:
@@ -290,7 +295,7 @@ def load_settings(user_input_dir: Path | None = None) -> dict[str, Any]:
             if not p.is_absolute():
                 run_kwargs[path_key] = ROOT / p
 
-    qm_raw = settings.get("quantification_method", settings.get("定量方法", "isotonic"))
+    qm_raw = settings.get("quantification_method", settings.get("定量方法", "quadratic"))
     im_raw = settings.get("imaging_mode", settings.get("成像模式", "auto"))
     run_kwargs["standard_concentrations"] = ",".join(str(x) for x in DEFAULT_CONCENTRATIONS)
     run_kwargs["quantification_method"] = normalize_quantification_method(qm_raw)
@@ -484,22 +489,27 @@ def validate_user_input(user_input_dir: Path | None = None) -> list[ValidationIs
                 )
             )
         else:
+            quantification_method = settings.get("quantification_method", "quadratic")
+            minimum_count = minimum_standard_count(quantification_method)
             for image_name, concentrations in concentrations_by_image.items():
                 label = "(default)" if image_name == "_default" else image_name
-                if len(concentrations) < 3:
+                if len(concentrations) < minimum_count:
                     issues.append(
                         ValidationIssue(
                             level="error",
                             code="too_few_standards",
-                            title=f"{label} has fewer than 3 standard concentrations",
+                            title=(
+                                f"{label} has fewer than {minimum_count} standard concentrations "
+                                f"for {quantification_method} quantification"
+                            ),
                             path=conc_path,
                             next_steps=(
-                                "Enter at least 3 standard concentrations from left to right",
+                                f"Enter at least {minimum_count} standard concentrations from left to right",
                                 "Remove incomplete rows that are not used",
                             ),
                         )
                     )
-                elif not all(math.isfinite(value) for value in concentrations):
+                if not all(math.isfinite(value) for value in concentrations):
                     issues.append(
                         ValidationIssue(
                             level="error",
@@ -507,6 +517,30 @@ def validate_user_input(user_input_dir: Path | None = None) -> list[ValidationIs
                             title=f"{label} contains NaN or an infinite concentration",
                             path=conc_path,
                             next_steps=("Replace every concentration with a finite number",),
+                        )
+                    )
+                    continue
+                if any(value < 0 for value in concentrations):
+                    issues.append(
+                        ValidationIssue(
+                            level="error",
+                            code="concentrations_negative",
+                            title=f"{label} contains a negative concentration",
+                            path=conc_path,
+                            next_steps=("Use zero for a blank standard and non-negative values for all other standards",),
+                        )
+                    )
+                if len(set(concentrations)) != len(concentrations):
+                    issues.append(
+                        ValidationIssue(
+                            level="error",
+                            code="concentrations_duplicated",
+                            title=f"{label} contains duplicate standard concentrations",
+                            path=conc_path,
+                            next_steps=(
+                                "Use distinct calibration levels",
+                                "Put technical replicates in separate lanes or images and summarize them explicitly",
+                            ),
                         )
                     )
 

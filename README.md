@@ -14,12 +14,28 @@ Chinese instructions: [README_zh.md](README_zh.md)
 6. When finished, open results from the launcher (or `runs/predict-seg/`)
 
 > Console-only mode: `TLC-RAPID.exe --cli`
+>
+> Version and source commit: `TLC-RAPID.exe --version`
+>
+> License and source notice: `TLC-RAPID.exe --license`
+
+### Run from source
+
+Use Python 3.12 in a clean virtual environment. The trained model is distributed separately from Git source; place the published `best.pt` at `weights/best.pt` and verify the hash documented in [MODEL_CARD.md](MODEL_CARD.md).
+
+```powershell
+py -3.12 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements-lock.txt
+python -m unittest discover -s tests -v
+python run_analysis.py
+```
 
 ## Analysis settings
 
 **Standard concentrations** (`user_input/standard_concentrations.csv`): enter the amount for each standard spot from left to right; the `(default)` row applies to all images unless overridden by filename.
 
-The number of standards is **not fixed at five**, but at least **3 standards** are required. TLC-RAPID takes the count of populated `standard_*` columns in this table as *N*: the leftmost *N* spots are treated as standards and all spots to their right as samples. The five columns in the template are only an example—for 3, 4, 6, or more standards, add or remove `standard_*` columns and fill in the corresponding amounts.
+The number of standards is **not fixed at five**. The default quadratic paper workflow requires at least **4 distinct, non-negative standards**; isotonic mode requires at least **3**. TLC-RAPID takes the count of populated `standard_*` columns in this table as *N*: the leftmost *N* spots are treated as standards and all spots to their right as samples. The five columns in the template are only an example—add or remove `standard_*` columns and fill in the corresponding amounts.
 
 | image_filename | standard_1 | standard_2 | … | notes |
 |----------------|------------|------------|---|-------|
@@ -31,7 +47,7 @@ The number of standards is **not fixed at five**, but at least **3 standards** a
 | parameter | typical value | meaning |
 |-----------|---------------|---------|
 | imaging_mode | 366nm / visible / 254nm | For 366 nm fluorescence plates, use `366nm` (not `auto`) |
-| quantification_method | isotonic | Daily use; `quadratic` reproduces the paper workflow |
+| quantification_method | quadratic | Paper/default workflow; `isotonic` is the monotonic alternative |
 | confidence_threshold | 0.15 | Detection confidence |
 
 ## Manual spot marking
@@ -49,7 +65,7 @@ In annotated output: **green** = standard, **red** = sample, **yellow** = manual
 
 ## Reading results
 
-Each run writes to `runs/predict-seg/exp*/` (or the latest run folder). Sample quantification is in **`quantitative_analysis_all_images.xlsx`**; the **`Calculated_Concentration`** column gives the predicted amount for each unknown spot, in the same units as the standards in `standard_concentrations.csv`. If **`Out_of_Range`** is `True`, the response or back-calculated amount lies outside the validated calibration range and should be interpreted with caution.
+Each run writes to `runs/predict-seg/exp*/` (or the latest run folder). Sample quantification is in **`quantitative_analysis_all_images.xlsx`**; the **`Calculated_Concentration`** column gives the predicted amount for each unknown spot, in the same units as the standards in `standard_concentrations.csv`. The **`Metadata`** sheet records the software version, source commit, model/configuration hashes, dependency versions, and analysis parameters needed to trace the result. If **`Out_of_Range`** is `True`, the response or back-calculated amount lies outside the validated calibration range and should be interpreted with caution.
 
 | Column | Meaning |
 |--------|---------|
@@ -70,6 +86,25 @@ Source code is publicly available under the **GNU Affero General Public License 
 - Repository: https://github.com/zongxuli709-code/TLC-RAPID
 - The packaged Windows executable (`TLC-RAPID.exe`) may be distributed together with a clear link to this repository so that recipients can obtain the corresponding source code, as required by AGPL-3.0.
 
+## Research and reproducibility records
+
+- Citation metadata: [CITATION.cff](CITATION.cff)
+- Model scope, checksum, and limitations: [MODEL_CARD.md](MODEL_CARD.md)
+- Dataset and split requirements: [DATA.md](DATA.md)
+- Exact environment and evaluation workflow: [REPRODUCIBILITY.md](REPRODUCIBILITY.md)
+- Resolved Windows build environment: [requirements-freeze.txt](requirements-freeze.txt)
+- Release history: [CHANGELOG.md](CHANGELOG.md)
+- Submission/release checklist: [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md)
+
+Before citing a result, retain the generated workbook's `Metadata` and `Image_Status` sheets together with the input manifest and ground truth used for evaluation.
+
 ## License
 
-TLC-RAPID — Copyright (c) 2026. Licensed under GNU AGPL-3.0. See [LICENSE](LICENSE).
+TLC-RAPID — Copyright (C) 2025-2026 Zongxu Li and contributors. The combined
+source, executable, and released YOLO-trained weight are licensed under
+**GNU AGPL-3.0-only**. Academic and commercial use are permitted when the AGPL
+conditions are followed, including corresponding-source obligations. A
+closed-source commercial deployment requires separate upstream rights; this
+public package does not grant them. See [LICENSING.md](LICENSING.md),
+[MODEL_WEIGHTS.md](MODEL_WEIGHTS.md), [MODIFICATIONS.md](MODIFICATIONS.md),
+[THIRD_PARTY_NOTICES.txt](THIRD_PARTY_NOTICES.txt), and [LICENSE](LICENSE).
