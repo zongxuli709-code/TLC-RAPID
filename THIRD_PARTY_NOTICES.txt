@@ -33,7 +33,7 @@ Requests                2.32.2        Apache-2.0; REQUESTS-2.32.2-LICENSE.txt
 packaging               23.2          Apache-2.0 or BSD-2-Clause;
                                       PACKAGING-23.2-*.txt
 tqdm                    4.66.4        MPL-2.0 and MIT; TQDM-4.66.4-LICENCE.txt
-psutil                  5.9.0         BSD-3-Clause; PSUTIL-5.9.0-LICENSE.txt
+psutil                  5.9.8         BSD-3-Clause; PSUTIL-5.9.8-LICENSE.txt
 Python runtime          3.12.4        PSF License; PYTHON-3.12.4.txt
 Tcl/Tk GUI runtime      8.6           BSD-style terms; TCL-TK-8.6-LICENSE-TERMS.txt
 

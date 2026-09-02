@@ -34,7 +34,7 @@ cycler 0.11.0
 et-xmlfile 1.1.0
   License metadata: MIT
   Homepage: https://foss.heptapod.net/openpyxl/et_xmlfile
-  License files: ET-XMLFILE-1.1.0-ET-XMLFILE-1-1-0-TXT.txt
+  License files: ET-XMLFILE-1.1.0-LICENCE-RST.txt
 
 filelock 3.13.1
   License metadata: not declared
@@ -66,14 +66,14 @@ joblib 1.4.2
   Homepage: not declared
   License files: JOBLIB-1.4.2-LICENSE-TXT.txt
 
-kiwisolver 1.4.4
+kiwisolver 1.4.5
   License metadata: =========================
   Homepage: not declared
-  License files: KIWISOLVER-1.4.4-LICENSE.txt
+  License files: KIWISOLVER-1.4.5-LICENSE.txt
 
 MarkupSafe 2.1.3
   License metadata: BSD-3-Clause
-  Homepage: https://palletsprojects.com/p/markupsafe/
+  Homepage: not declared
   License files: MARKUPSAFE-2.1.3-LICENSE-RST.txt
 
 matplotlib 3.8.4
@@ -126,10 +126,10 @@ pillow 10.3.0
   Homepage: not declared
   License files: PILLOW-10.3.0-LICENSE.txt
 
-psutil 5.9.0
-  License metadata: BSD
+psutil 5.9.8
+  License metadata: BSD-3-Clause
   Homepage: https://github.com/giampaolo/psutil
-  License files: PSUTIL-5.9.0-LICENSE.txt
+  License files: PSUTIL-5.9.8-LICENSE.txt
 
 py-cpuinfo 9.0.0
   License metadata: MIT
@@ -164,7 +164,7 @@ pytz 2024.1
 pywin32-ctypes 0.2.2
   License metadata: BSD-3-Clause
   Homepage: https://github.com/enthought/pywin32-ctypes
-  License files: PYWIN32-CTYPES-0.2.2-PYWIN32-CTYPES-0-2-2-TXT.txt
+  License files: PYWIN32-CTYPES-0.2.2-LICENSE-TXT.txt
 
 PyYAML 6.0.1
   License metadata: MIT
@@ -194,7 +194,7 @@ seaborn 0.13.2
 setuptools 69.5.1
   License metadata: not declared
   Homepage: https://github.com/pypa/setuptools
-  License files: SETUPTOOLS-69.5.1-SETUPTOOLS-69-5-1-TXT.txt
+  License files: SETUPTOOLS-69.5.1-LICENSE.txt
 
 six 1.16.0
   License metadata: MIT
