@@ -92,8 +92,8 @@ if (-not (Test-Path -LiteralPath (Join-Path $DistRoot "TLC-RAPID.exe") -PathType
 
 New-Item -ItemType Directory -Path $ReleaseRoot -Force | Out-Null
 $StagingRoot = Join-Path $ReleaseRoot "staging-$ReleaseTag"
-$SourceStage = Join-Path $StagingRoot "TLC-RAPID-$ReleaseTag-source"
-$WindowsStage = Join-Path $StagingRoot "TLC-RAPID-$ReleaseTag-windows-x64"
+$SourceStage = Join-Path $StagingRoot "TLC-RAPID-$ReleaseTag-GitHub-source"
+$WindowsStage = Join-Path $StagingRoot "TLC-RAPID-$ReleaseTag-Windows-user"
 Reset-ReleaseDirectory $StagingRoot
 New-Item -ItemType Directory -Path $SourceStage, $WindowsStage | Out-Null
 
@@ -123,9 +123,7 @@ New-Item -ItemType Directory -Path (Join-Path $WindowsStage "runs\predict-seg") 
 $ReleaseDocs = @(
     "README.md", "README_zh.md", "LICENSE", "LICENSING.md", "COPYRIGHT.txt",
     "MODIFICATIONS.md", "THIRD_PARTY_NOTICES.txt", "CITATION.cff",
-    "MODEL_CARD.md", "MODEL_WEIGHTS.md", "DATA.md", "REPRODUCIBILITY.md",
-    "CHANGELOG.md", "RELEASE_CHECKLIST.md", "requirements-lock.txt",
-    "requirements-freeze.txt"
+    "MODEL_CARD.md", "MODEL_WEIGHTS.md", "CHANGELOG.md"
 )
 foreach ($doc in $ReleaseDocs) {
     Copy-Item -LiteralPath (Join-Path $ProjectRoot $doc) -Destination (Join-Path $WindowsStage $doc)
@@ -141,7 +139,7 @@ This package was built from commit:
 $ReleaseCommit
 
 The complete corresponding source archive distributed alongside this package is:
-TLC-RAPID-$ReleaseTag-source.zip
+TLC-RAPID-$ReleaseTag-GitHub-source.zip
 
 Release page:
 $SourceUrl/releases/tag/$ReleaseTag
@@ -157,8 +155,8 @@ foreach ($stage in @($SourceStage, $WindowsStage)) {
     Write-Manifest $stage "SHA256SUMS.txt"
 }
 
-$SourceZip = Join-Path $ReleaseRoot "TLC-RAPID-$ReleaseTag-source.zip"
-$WindowsZip = Join-Path $ReleaseRoot "TLC-RAPID-$ReleaseTag-windows-x64.zip"
+$SourceZip = Join-Path $ReleaseRoot "TLC-RAPID-$ReleaseTag-GitHub-source.zip"
+$WindowsZip = Join-Path $ReleaseRoot "TLC-RAPID-$ReleaseTag-Windows-user.zip"
 foreach ($zip in @($SourceZip, $WindowsZip)) {
     Assert-ChildPath $zip $ReleaseRoot
     if (Test-Path -LiteralPath $zip) { Remove-Item -LiteralPath $zip -Force }
