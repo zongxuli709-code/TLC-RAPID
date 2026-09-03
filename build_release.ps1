@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
-    [switch]$SkipPyInstaller
+    [switch]$SkipPyInstaller,
+    [switch]$UseCommittedLicenses
 )
 
 $ErrorActionPreference = "Stop"
@@ -75,11 +76,13 @@ if ($ActualWeightHash -ne $ExpectedWeightHash) {
 
 python -m unittest discover -s tests -v
 if ($LASTEXITCODE -ne 0) { throw "Unit tests failed." }
-python collect_third_party_licenses.py
-if ($LASTEXITCODE -ne 0) { throw "Third-party license collection failed." }
-$licenseChanges = git status --porcelain -- THIRD_PARTY_LICENSES requirements-freeze.txt
-if ($LASTEXITCODE -ne 0 -or $licenseChanges) {
-    throw "Collected license files differ from the committed release materials. Commit the updated files first."
+if (-not $UseCommittedLicenses) {
+    python collect_third_party_licenses.py
+    if ($LASTEXITCODE -ne 0) { throw "Third-party license collection failed." }
+    $licenseChanges = git status --porcelain -- THIRD_PARTY_LICENSES requirements-freeze.txt
+    if ($LASTEXITCODE -ne 0 -or $licenseChanges) {
+        throw "Collected license files differ from the committed release materials. Commit the updated files first."
+    }
 }
 
 if (-not $SkipPyInstaller) {
