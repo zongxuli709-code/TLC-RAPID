@@ -26,7 +26,7 @@
 - `example-visible.jpg`：可见光图，标准浓度从左至右为 0.03125、0.0625、0.125、0.25、0.5 mg/mL。
 - `example-uv366.jpg`：366 nm 图，标准浓度从左至右为 0.125、0.2、0.25、0.5、1.0 mg/mL。
 
-正式用户包仅支持 64 位 Windows。解压后直接双击 `TLC-RAPID.exe`，无需安装 Python。源码环境和复现方法由开发者参阅 [REPRODUCIBILITY.md](REPRODUCIBILITY.md)。
+正式用户包仅支持 64 位 Windows。解压后直接双击 `TLC-RAPID.exe`，无需安装 Python。源码环境和复现方法由开发者参阅 [GitHub 源码仓库中的 REPRODUCIBILITY.md](https://github.com/zongxuli709-code/TLC-RAPID/blob/v1.0.0/REPRODUCIBILITY.md)。
 
 ## 分析设置
 

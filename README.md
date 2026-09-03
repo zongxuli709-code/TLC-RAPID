@@ -32,7 +32,8 @@ materials and concentration mapping are documented in
 
 The user package supports 64-bit Windows only. Extract it and double-click
 `TLC-RAPID.exe`; Python is not required. Developers can find the source
-environment and reproduction procedure in [REPRODUCIBILITY.md](REPRODUCIBILITY.md).
+environment and reproduction procedure in the GitHub repository's
+[REPRODUCIBILITY.md](https://github.com/zongxuli709-code/TLC-RAPID/blob/v1.0.0/REPRODUCIBILITY.md).
 
 ## Analysis settings
 
