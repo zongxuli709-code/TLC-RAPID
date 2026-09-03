@@ -15,9 +15,11 @@
   `THIRD_PARTY_LICENSES/`.
 - [x] The release builder refuses a dirty or untagged source tree.
 - [x] The release builder verifies the model hash and runs the unit tests.
-- [x] The release builder produces both a versioned source ZIP and a Windows
-  x64 executable ZIP, each with `SOURCE_CODE.txt`, `VERSION.txt`, and an
-  internal SHA-256 manifest.
+- [x] The release builder produces a versioned GitHub source ZIP, a Windows
+  x64 executable ZIP, and a Windows/macOS Python user ZIP, each with
+  `SOURCE_CODE.txt`, `VERSION.txt`, and an internal SHA-256 manifest.
+- [x] Two anonymized workflow examples have per-image concentration mappings,
+  a data license, and no embedded personal metadata.
 
 ## Author records still requiring confirmation
 
@@ -47,9 +49,10 @@ After completing the author records, commit the release, place the exact
 
 Expected outputs:
 
-- `release/TLC-RAPID-v1.0.0-source.zip`
-- `release/TLC-RAPID-v1.0.0-windows-x64.zip`
+- `release/TLC-RAPID-v1.0.0-GitHub-source.zip`
+- `release/TLC-RAPID-v1.0.0-Windows-user.zip`
+- `release/TLC-RAPID-v1.0.0-Python-Windows-macOS-user.zip`
 - `release/SHA256SUMS.txt`
 
-Upload both ZIP files and `SHA256SUMS.txt` to the same archival release page so
+Upload all ZIP files and `SHA256SUMS.txt` to the same archival release page so
 executable recipients have equivalent access to the corresponding source.

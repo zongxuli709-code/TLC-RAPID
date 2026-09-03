@@ -1,6 +1,15 @@
 # Data and evaluation record
 
-TLC-RAPID does not include private experimental images in the source repository or Windows release. Input images under `user_input/images/` are ignored, and the release builder keeps only the placeholder instruction file.
+TLC-RAPID does not include private experimental images in the source repository or releases. Input images under `user_input/images/` are ignored by Git.
+
+## Bundled workflow example
+
+Two anonymized demonstration images are distributed in `example_data/` with
+their per-image standard concentrations and an explicit data license. The
+release builder copies them into `user_input/` so a new user can run the
+workflow immediately. They are not part of the training, validation, or
+independent test sets and must not be used as a performance benchmark. See
+`example_data/README.md` and `example_data/DATA_LICENSE.txt`.
 
 ## Required dataset description
 

@@ -9,3 +9,7 @@
 - Required at least four distinct non-negative standards for quadratic quantification.
 - Removed silent standard-concentration reversal and runtime dependency installation.
 - Added input validation, regression tests, automatic detection/quantification metric summaries, model/data documentation, and a locked known-good environment.
+- Added two anonymized, licensed example images with correct per-image standard
+  concentrations for an immediate trial run.
+- Added a runtime-only Python user package and launcher instructions for
+  Windows and macOS; the native executable remains Windows-specific.

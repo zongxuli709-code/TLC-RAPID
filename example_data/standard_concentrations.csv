@@ -1,0 +1,4 @@
+image_filename,standard_1,standard_2,standard_3,standard_4,standard_5,notes
+example-visible.jpg,0.03125,0.0625,0.125,0.25,0.5,mg/mL; standards from left to right
+example-uv366.jpg,0.125,0.2,0.25,0.5,1.0,mg/mL; standards from left to right
+
