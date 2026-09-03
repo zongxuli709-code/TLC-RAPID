@@ -1,5 +1,5 @@
 # Fully resolved Windows/Python 3.12 environment used for TLC-RAPID v1.0.0.
-# Platform-specific build lock; direct cross-platform pins are in requirements-lock.txt.
+# Fully resolved Windows build lock; direct dependency pins are in requirements-lock.txt.
 altgraph==0.17.5
 certifi==2025.1.31
 charset-normalizer==2.0.4

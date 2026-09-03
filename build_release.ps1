@@ -97,9 +97,8 @@ New-Item -ItemType Directory -Path $ReleaseRoot -Force | Out-Null
 $StagingRoot = Join-Path $ReleaseRoot "staging-$ReleaseTag"
 $SourceStage = Join-Path $StagingRoot "TLC-RAPID-$ReleaseTag-GitHub-source"
 $WindowsStage = Join-Path $StagingRoot "TLC-RAPID-$ReleaseTag-Windows-user"
-$PythonStage = Join-Path $StagingRoot "TLC-RAPID-$ReleaseTag-Python-Windows-macOS-user"
 Reset-ReleaseDirectory $StagingRoot
-New-Item -ItemType Directory -Path $SourceStage, $WindowsStage, $PythonStage | Out-Null
+New-Item -ItemType Directory -Path $SourceStage, $WindowsStage | Out-Null
 
 $GitArchive = Join-Path $StagingRoot "tracked-source.zip"
 git archive --format=zip --output=$GitArchive HEAD
@@ -135,27 +134,6 @@ Copy-Item -LiteralPath (Join-Path $ProjectRoot "USER_PACKAGE_README.md") -Destin
 Copy-Item -LiteralPath (Join-Path $ProjectRoot "THIRD_PARTY_LICENSES") -Destination $WindowsStage -Recurse
 Copy-Item -LiteralPath (Join-Path $ProjectRoot "requirements-freeze.txt") -Destination (Join-Path $WindowsStage "PACKAGE_VERSIONS.txt")
 
-# Build a runtime-only Python package that works on Windows and macOS after
-# installing Python dependencies. Native executables must be built per OS.
-foreach ($directory in @("models", "segment", "utils")) {
-    Copy-Item -LiteralPath (Join-Path $SourceStage $directory) -Destination $PythonStage -Recurse
-}
-New-Item -ItemType Directory -Path (Join-Path $PythonStage "weights"), (Join-Path $PythonStage "user_input\images"), (Join-Path $PythonStage "runs\predict-seg") -Force | Out-Null
-Copy-Item -LiteralPath $WeightPath -Destination (Join-Path $PythonStage "weights\best.pt")
-Copy-Item -LiteralPath (Join-Path $ProjectRoot "weights\boCenColor.yaml") -Destination (Join-Path $PythonStage "weights\boCenColor.yaml")
-Copy-Item -Path (Join-Path $ProjectRoot "example_data\images\*") -Destination (Join-Path $PythonStage "user_input\images")
-Copy-Item -LiteralPath (Join-Path $ProjectRoot "example_data\analysis_settings.csv") -Destination (Join-Path $PythonStage "user_input\analysis_settings.csv")
-Copy-Item -LiteralPath (Join-Path $ProjectRoot "example_data\standard_concentrations.csv") -Destination (Join-Path $PythonStage "user_input\standard_concentrations.csv")
-Copy-Item -LiteralPath (Join-Path $ProjectRoot "example_data\DATA_LICENSE.txt") -Destination (Join-Path $PythonStage "EXAMPLE_DATA_LICENSE.txt")
-foreach ($file in @("app_metadata.py", "app_paths.py", "run_analysis.py", "run_analysis.sh", "requirements.txt")) {
-    Copy-Item -LiteralPath (Join-Path $SourceStage $file) -Destination (Join-Path $PythonStage $file)
-}
-foreach ($doc in $ReleaseDocs) {
-    Copy-Item -LiteralPath (Join-Path $SourceStage $doc) -Destination (Join-Path $PythonStage $doc)
-}
-Copy-Item -LiteralPath (Join-Path $SourceStage "USER_PACKAGE_README.md") -Destination (Join-Path $PythonStage "START_HERE.md")
-Copy-Item -LiteralPath (Join-Path $SourceStage "THIRD_PARTY_LICENSES") -Destination $PythonStage -Recurse
-
 $SourceUrl = "https://github.com/zongxuli709-code/TLC-RAPID"
 $sourceNotice = @"
 TLC-RAPID $ReleaseTag
@@ -174,7 +152,7 @@ $SourceUrl
 
 License: GNU AGPL-3.0-only. See LICENSE and LICENSING.md.
 "@
-foreach ($stage in @($SourceStage, $WindowsStage, $PythonStage)) {
+foreach ($stage in @($SourceStage, $WindowsStage)) {
     [System.IO.File]::WriteAllText((Join-Path $stage "SOURCE_CODE.txt"), $sourceNotice, [System.Text.UTF8Encoding]::new($false))
     [System.IO.File]::WriteAllText((Join-Path $stage "VERSION.txt"), "$ReleaseTag`n$ReleaseCommit`n", [System.Text.UTF8Encoding]::new($false))
     Write-Manifest $stage "SHA256SUMS.txt"
@@ -182,17 +160,15 @@ foreach ($stage in @($SourceStage, $WindowsStage, $PythonStage)) {
 
 $SourceZip = Join-Path $ReleaseRoot "TLC-RAPID-$ReleaseTag-GitHub-source.zip"
 $WindowsZip = Join-Path $ReleaseRoot "TLC-RAPID-$ReleaseTag-Windows-user.zip"
-$PythonZip = Join-Path $ReleaseRoot "TLC-RAPID-$ReleaseTag-Python-Windows-macOS-user.zip"
-foreach ($zip in @($SourceZip, $WindowsZip, $PythonZip)) {
+foreach ($zip in @($SourceZip, $WindowsZip)) {
     Assert-ChildPath $zip $ReleaseRoot
     if (Test-Path -LiteralPath $zip) { Remove-Item -LiteralPath $zip -Force }
 }
 Compress-Archive -LiteralPath $SourceStage -DestinationPath $SourceZip -CompressionLevel Optimal
 Compress-Archive -LiteralPath $WindowsStage -DestinationPath $WindowsZip -CompressionLevel Optimal
-Compress-Archive -LiteralPath $PythonStage -DestinationPath $PythonZip -CompressionLevel Optimal
 
 $topManifest = @()
-foreach ($zip in @($SourceZip, $WindowsZip, $PythonZip)) {
+foreach ($zip in @($SourceZip, $WindowsZip)) {
     $topManifest += "{0}  {1}" -f (
         Get-FileHash -LiteralPath $zip -Algorithm SHA256
     ).Hash, (Split-Path $zip -Leaf)
@@ -205,5 +181,4 @@ Write-Host ""
 Write-Host "Release complete:"
 Write-Host "  $SourceZip"
 Write-Host "  $WindowsZip"
-Write-Host "  $PythonZip"
 Write-Host "  $(Join-Path $ReleaseRoot 'SHA256SUMS.txt')"

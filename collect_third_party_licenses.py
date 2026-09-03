@@ -80,7 +80,7 @@ def collect() -> list[Path]:
     ]
     lock_lines = [
         "# Fully resolved Windows/Python 3.12 environment used for TLC-RAPID v1.0.0.",
-        "# Platform-specific build lock; direct cross-platform pins are in requirements-lock.txt.",
+        "# Fully resolved Windows build lock; direct dependency pins are in requirements-lock.txt.",
     ]
     missing: list[str] = []
 
@@ -168,4 +168,3 @@ if __name__ == "__main__":
     print(f"Generated {len(files)} release records and license files.")
     print(f"License directory: {OUTPUT}")
     print(f"Resolved environment: {LOCK}")
-

@@ -26,21 +26,7 @@
 - `example-visible.jpg`：可见光图，标准浓度从左至右为 0.03125、0.0625、0.125、0.25、0.5 mg/mL。
 - `example-uv366.jpg`：366 nm 图，标准浓度从左至右为 0.125、0.2、0.25、0.5、1.0 mg/mL。
 
-Windows 用户优先使用免安装的 Windows 用户包。macOS 用户使用 Python 跨平台用户包；Windows `.exe` 不能在 macOS 上运行，当前版本也不提供已签名的原生 macOS `.app`。
-
-### 从源码运行
-
-建议使用 Python 3.12 和全新的虚拟环境。训练权重不直接存入 Git 源码；请把正式发布的 `best.pt` 放到 `weights/best.pt`，并按照 [MODEL_CARD.md](MODEL_CARD.md) 核对哈希。
-
-```powershell
-py -3.12 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements-lock.txt
-python -m unittest discover -s tests -v
-python run_analysis.py
-```
-
-macOS 可在虚拟环境安装依赖后运行 `bash run_analysis.sh`。具体步骤见用户包中的 `START_HERE.md`。
+正式用户包仅支持 64 位 Windows。解压后直接双击 `TLC-RAPID.exe`，无需安装 Python。源码环境和复现方法由开发者参阅 [REPRODUCIBILITY.md](REPRODUCIBILITY.md)。
 
 ## 分析设置
 

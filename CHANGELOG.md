@@ -11,5 +11,5 @@
 - Added input validation, regression tests, automatic detection/quantification metric summaries, model/data documentation, and a locked known-good environment.
 - Added two anonymized, licensed example images with correct per-image standard
   concentrations for an immediate trial run.
-- Added a runtime-only Python user package and launcher instructions for
-  Windows and macOS; the native executable remains Windows-specific.
+- The end-user release is a self-contained 64-bit Windows executable package;
+  ordinary users do not need to create a Python environment.

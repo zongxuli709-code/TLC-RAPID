@@ -21,7 +21,7 @@ Chinese instructions: [README_zh.md](README_zh.md)
 
 ### Included example
 
-The release packages include two anonymized example images with per-image
+The Windows user package includes two anonymized example images with per-image
 standard concentrations, so a complete workflow can be tried immediately.
 They are workflow demonstrations, not a validation benchmark. The source
 materials and concentration mapping are documented in
@@ -30,24 +30,9 @@ materials and concentration mapping are documented in
 - `example-visible.jpg`: 0.03125, 0.0625, 0.125, 0.25, and 0.5 mg/mL.
 - `example-uv366.jpg`: 0.125, 0.2, 0.25, 0.5, and 1.0 mg/mL.
 
-Windows users should use the self-contained Windows package. macOS users
-should use the cross-platform Python package. A Windows `.exe` cannot run on
-macOS, and v1.0.0 does not include a signed native macOS `.app`.
-
-### Run from source
-
-Use Python 3.12 in a clean virtual environment. The trained model is distributed separately from Git source; place the published `best.pt` at `weights/best.pt` and verify the hash documented in [MODEL_CARD.md](MODEL_CARD.md).
-
-```powershell
-py -3.12 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements-lock.txt
-python -m unittest discover -s tests -v
-python run_analysis.py
-```
-
-On macOS, install the dependencies in a virtual environment and run
-`bash run_analysis.sh`. See `START_HERE.md` in the user package.
+The user package supports 64-bit Windows only. Extract it and double-click
+`TLC-RAPID.exe`; Python is not required. Developers can find the source
+environment and reproduction procedure in [REPRODUCIBILITY.md](REPRODUCIBILITY.md).
 
 ## Analysis settings
 

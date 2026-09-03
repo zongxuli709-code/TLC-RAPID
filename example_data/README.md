@@ -21,10 +21,9 @@ be run immediately. When running from the GitHub source package, copy the two
 JPG files to `user_input/images`, then replace the two CSV files in
 `user_input` with the CSV files in this directory.
 
-Run `TLC-RAPID.exe` on Windows, or run `python run_analysis.py` from a Python
-environment on Windows or macOS. Review and correct detected spots in the
-manual-marking window, then find the results under `runs/predict-seg`.
+In the Windows user package, double-click `TLC-RAPID.exe`. Review and correct
+detected spots in the manual-marking window, then find the results under
+`runs/predict-seg`.
 
 These images are demonstration data, not a validation benchmark. Output may
 vary with manual corrections, dependency versions, and hardware.
-
