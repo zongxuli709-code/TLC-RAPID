@@ -5,7 +5,7 @@ license texts and is not legal advice.
 
 ## Public research and open-source release
 
-TLC-RAPID v1.0.0, including the bundled YOLOv5-derived inference code and the
+TLC-RAPID v1.0, including the bundled YOLOv5-derived inference code and the
 published `best.pt` model, is distributed under the **GNU Affero General Public
 License v3.0 only (AGPL-3.0-only)**. See `LICENSE`.
 
@@ -52,4 +52,3 @@ by qualified counsel.
   any permissions needed for publication or redistribution.
 
 No trademark rights or endorsement rights are granted by the software license.
-

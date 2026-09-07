@@ -74,12 +74,12 @@ def collect() -> list[Path]:
 
     created: list[Path] = []
     inventory: list[str] = [
-        "TLC-RAPID v1.0.0 dependency and license inventory",
+        "TLC-RAPID v1.0 dependency and license inventory",
         "Generated from the locked Windows release environment.",
         "",
     ]
     lock_lines = [
-        "# Fully resolved Windows/Python 3.12 environment used for TLC-RAPID v1.0.0.",
+        "# Fully resolved Windows/Python 3.12 environment used for TLC-RAPID v1.0.",
         "# Fully resolved Windows build lock; direct dependency pins are in requirements-lock.txt.",
     ]
     missing: list[str] = []

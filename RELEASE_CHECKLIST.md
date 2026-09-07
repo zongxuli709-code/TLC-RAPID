@@ -1,4 +1,4 @@
-# TLC-RAPID v1.0.0 submission and release checklist
+# TLC-RAPID v1.0 submission and release checklist
 
 ## Automated release requirements
 
@@ -41,7 +41,7 @@
 ## Build and archive
 
 After completing the author records, commit the release, place the exact
-`v1.0.0` tag on that commit, and run:
+`v1.0` tag on that commit, and run:
 
 ```powershell
 .\build_release.ps1
@@ -49,8 +49,8 @@ After completing the author records, commit the release, place the exact
 
 Expected outputs:
 
-- `release/TLC-RAPID-v1.0.0-GitHub-source.zip`
-- `release/TLC-RAPID-v1.0.0-Windows-user.zip`
+- `release/TLC-RAPID-v1.0-GitHub-source.zip`
+- `release/TLC-RAPID-v1.0-Windows-user.zip`
 - `release/SHA256SUMS.txt`
 
 Upload both ZIP files and `SHA256SUMS.txt` to the same archival release page so

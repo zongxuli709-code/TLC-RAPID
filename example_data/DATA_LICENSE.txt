@@ -1,4 +1,4 @@
-TLC-RAPID v1.0.0 example data
+TLC-RAPID v1.0 example data
 
 Copyright (C) 2026 TLC-RAPID authors.
 
@@ -9,4 +9,3 @@ copied, and modified under the terms in the repository's LICENSE file.
 The images contain no patient identifiers or personal metadata. They are
 provided only as workflow demonstrations and must not be interpreted as a
 clinical or analytical validation dataset.
-

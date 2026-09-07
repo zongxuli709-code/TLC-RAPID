@@ -1,4 +1,4 @@
-# Reproducing TLC-RAPID v1.0.0
+# Reproducing TLC-RAPID v1.0
 
 ## Source environment
 
@@ -24,7 +24,7 @@ Place the published model at `weights/best.pt` and verify its SHA-256:
 Get-FileHash weights\best.pt -Algorithm SHA256
 ```
 
-Expected v1.0.0 hash:
+Expected v1.0 hash:
 
 ```text
 E507240E8C7BB8E8C3C57ABB20ADEE6FEBA78670F2EDF6E06BCF1AE12A4440A5
@@ -38,7 +38,7 @@ E507240E8C7BB8E8C3C57ABB20ADEE6FEBA78670F2EDF6E06BCF1AE12A4440A5
 4. Run `python run_analysis.py --run` for a non-interactive run or `python run_analysis.py` for the launcher.
 5. Inspect `quantitative_analysis_all_images.xlsx`, including `Metadata` and `Image_Status`.
 
-The default paper workflow uses quadratic back-calculation and requires at least four distinct non-negative standard concentrations. TLC-RAPID never silently reverses the standard labels.
+The v1.0 default uses isotonic regression and requires at least three distinct non-negative standard concentrations. The optional quadratic mode reproduces the manuscript calculations, requires at least four standards, and is rejected when its fitted vertex lies inside the standard concentration range. TLC-RAPID never silently reverses standard labels.
 
 ## Detection evaluation
 

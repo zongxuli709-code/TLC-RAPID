@@ -1,4 +1,4 @@
-# Known-good environment used to build TLC-RAPID v1.0.0 on Windows with Python 3.12.4.
+# Known-good environment used to build TLC-RAPID v1.0 on Windows with Python 3.12.4.
 # Install in a clean virtual environment: python -m pip install -r requirements-lock.txt
 matplotlib==3.8.4
 numpy==1.26.4

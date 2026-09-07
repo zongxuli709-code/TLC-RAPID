@@ -1,11 +1,11 @@
-﻿parameter,value,description
+parameter,value,description
 model_weights,weights/best.pt,Segmentation model weights (relative to app root)
 dataset_config,weights/boCenColor.yaml,Class names configuration file
 standard_count,5,Number of reference-standard spots per image
 imaging_mode,auto,auto | 366nm | visible | 254nm
 y_axis_type,sum_od,Legacy; imaging_mode selects IGI or IOD
 transform_type,auto,Legacy parameter
-quantification_method,quadratic,quadratic (paper/default) | isotonic (monotonic alternative)
+quantification_method,isotonic,isotonic (default) | quadratic (paper reproduction only)
 roi_width,130,Analysis ROI width in pixels
 roi_height,35,Analysis ROI height in pixels
 confidence_threshold,0.15,Detection confidence threshold

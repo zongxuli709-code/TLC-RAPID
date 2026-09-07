@@ -810,7 +810,7 @@ def select_best_response_axis(standard_results, concentrations,
 
 def calculate_calibration_curve_quadratic(standard_results, standard_concentrations, y_axis_type="sum_od",
                                           y_label: str | None = None,
-                                          quantification_method: str = "quadratic"):
+                                          quantification_method: str = "isotonic"):
     """
     稳健标准曲线：
     1) 检查左右浓度顺序是否疑似录反，但不自动改写实验输入
@@ -819,8 +819,10 @@ def calculate_calibration_curve_quadratic(standard_results, standard_concentrati
     """
     if len(standard_results) != len(standard_concentrations):
         raise ValueError("Standard count does not match concentration list length")
-    if len(standard_results) < 3:
-        raise ValueError("Quadratic fit requires at least 3 standard points")
+    method = str(quantification_method or "isotonic").strip().lower()
+    required_count = 4 if method == "quadratic" else 3
+    if len(standard_results) < required_count:
+        raise ValueError(f"{method.capitalize()} calibration requires at least {required_count} standard points")
 
     if y_label is None:
         _, y_label = get_calibration_y_axis_for_background(
@@ -830,7 +832,7 @@ def calculate_calibration_curve_quadratic(standard_results, standard_concentrati
     concentrations = np.array(standard_concentrations, dtype=float)
     y_values = np.array([_extract_y_value(r, y_axis_type) for r in standard_results], dtype=float)
 
-    # 左右顺序检查：若反序相关性明显更好，自动翻转浓度匹配
+    # 左右顺序仅检查并报错；绝不静默重标标准品。
     order_reversed = False
     try:
         spearman_fwd = float(stats.spearmanr(concentrations, y_values).correlation)
@@ -885,8 +887,13 @@ def calculate_calibration_curve_quadratic(standard_results, standard_concentrati
         iso_r2 >= r_squared or r_squared < 0.75 or abs(spearman_used) < 0.8
     )
 
-    method = str(quantification_method or "quadratic").strip().lower()
+    from utils.calibration_safety import inspect_quadratic_domain, require_unambiguous_quadratic
+
+    quadratic_domain = inspect_quadratic_domain(
+        float(coefs[0]), float(coefs[1]), float(concentrations.min()), float(concentrations.max())
+    )
     if method == "quadratic":
+        require_unambiguous_quadratic(quadratic_domain)
         use_isotonic = False
     elif method == "isotonic":
         use_isotonic = iso is not None
@@ -917,6 +924,8 @@ def calculate_calibration_curve_quadratic(standard_results, standard_concentrati
         "order_reversed": order_reversed,
         "use_isotonic": use_isotonic,
         "isotonic_model": iso if use_isotonic else None,
+        "quadratic_vertex": quadratic_domain.vertex,
+        "quadratic_vertex_in_range": quadratic_domain.vertex_in_range,
     }
     return calibration_params, float(r_squared)
 
@@ -1041,6 +1050,10 @@ def solve_concentration_from_quadratic(y_value: float, calibration_params: dict)
     xs = calibration_params.get("X_original", [])
     ys = calibration_params.get("y_original", [])
     fallback = _interp_concentration_from_standards(y_value, xs, ys)
+
+    from utils.calibration_safety import inspect_quadratic_domain, require_unambiguous_quadratic
+
+    require_unambiguous_quadratic(inspect_quadratic_domain(a, b, cmin, cmax))
 
     if abs(a) < 1e-12:
         if abs(b) > 1e-12:
@@ -2028,9 +2041,9 @@ def process_spots_sorted(det, masks, gray_im, color_im, fixed_width, fixed_heigh
 
 @smart_inference_mode()
 def run(
-        weights=ROOT / "yolov5s-seg.pt",  # model.pt path(s)
-        source=ROOT / "data/images",  # file/dir/URL/glob/screen/0(webcam)
-        data=ROOT / "data/coco128.yaml",  # dataset.yaml path
+        weights=ROOT / "weights/best.pt",  # trained TLC-RAPID weights
+        source=ROOT / "user_input/images",  # input image directory
+        data=ROOT / "weights/boCenColor.yaml",  # dataset.yaml path
         imgsz=(640, 640),  # inference size (height, width)
         conf_thres=0.15,  # confidence threshold (lower = more sensitive to detect weak spots)
         iou_thres=0.3,  # NMS IOU threshold
@@ -2056,10 +2069,10 @@ def run(
         dnn=False,  # use OpenCV DNN for ONNX inference
         vid_stride=1,  # video frame-rate stride
         retina_masks=False,
-        fixed_width=30,  # 矩形宽度
-        fixed_height=20,  # 矩形高度
+        fixed_width=130,  # 矩形宽度
+        fixed_height=35,  # 矩形高度
         standard_num=5,  # 新增：标准品数量
-        standard_concentrations="0.125,0.25,0.5,1,2",  # 新增：标准品浓度
+        standard_concentrations="0.125,0.2,0.25,0.5,1",  # 默认标准品浓度
         y_axis_type='sum_od',  # 修改：默认使用总光密度值
         transform_type='auto',  # 新增：数据变换类型
         mask_interference=True,  # 新增：是否遮盖水平线外干扰斑点后二次推理（默认启用）
@@ -2071,7 +2084,7 @@ def run(
         manual_mark=True,  # 新增：启用手动矩形补标
         manual_save_json=True,  # 新增：保存手动框选json
         concentrations_by_image=None,  # 新增：按图片名读取浓度（由 run_analysis.py 传入）
-        quantification_method="quadratic",  # quadratic=论文默认; isotonic=等单调回归备选
+        quantification_method="isotonic",  # isotonic=默认; quadratic=论文复现模式
         imaging_mode="auto",  # auto/366nm/visible/254nm，固定 IGI 或 IOD
 ):
     """Run YOLOv5 segmentation inference on diverse sources including images, videos, directories, and streams."""
@@ -2080,9 +2093,9 @@ def run(
         quantification_method = normalize_quantification_method(quantification_method)
         imaging_mode = normalize_imaging_mode(imaging_mode)
     except Exception:
-        quantification_method = str(quantification_method or "quadratic").strip().lower()
+        quantification_method = str(quantification_method or "isotonic").strip().lower()
         if quantification_method not in ("isotonic", "quadratic"):
-            quantification_method = "quadratic"
+            quantification_method = "isotonic"
         minimum_standard_count = lambda method: 4 if method == "quadratic" else 3
         imaging_mode = str(imaging_mode or "auto").strip().lower()
 
@@ -2843,9 +2856,9 @@ def parse_opt():
     parser.add_argument("--transform-type", type=str, default="auto",
                         choices=["none", "log", "sqrt", "reciprocal", "log_log", "power", "auto"],
                         help="data transformation type to enhance linearity")
-    parser.add_argument("--quantification-method", type=str, default="quadratic",
+    parser.add_argument("--quantification-method", type=str, default="isotonic",
                         choices=["isotonic", "quadratic"],
-                        help="concentration back-calculation: quadratic (paper/default) or isotonic (alternative)")
+                        help="concentration back-calculation: isotonic (default) or quadratic (paper reproduction)")
     # 新增：遮盖水平线外干扰斑点后二次推理（默认启用）
     parser.add_argument("--mask-interference", action="store_true", default=True,
                         help="mask spots outside the reference horizontal band and re-run inference (default: True)")

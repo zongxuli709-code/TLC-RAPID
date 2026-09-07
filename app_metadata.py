@@ -12,7 +12,7 @@ from importlib import metadata
 from pathlib import Path
 
 APP_NAME = "TLC-RAPID"
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.0"
 APP_LICENSE = "GNU AGPL-3.0-only"
 SOURCE_URL = "https://github.com/zongxuli709-code/TLC-RAPID"
 COPYRIGHT_NOTICE = "Copyright (C) 2025-2026 Zongxu Li and TLC-RAPID contributors"

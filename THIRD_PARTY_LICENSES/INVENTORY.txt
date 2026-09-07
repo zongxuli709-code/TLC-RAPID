@@ -1,4 +1,4 @@
-TLC-RAPID v1.0.0 dependency and license inventory
+TLC-RAPID v1.0 dependency and license inventory
 Generated from the locked Windows release environment.
 
 altgraph 0.17.5

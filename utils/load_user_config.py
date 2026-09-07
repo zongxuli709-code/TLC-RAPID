@@ -42,7 +42,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "confidence_threshold": 0.15,
     "y_tolerance": 60,
     "images_folder": "images",
-    "quantification_method": "quadratic",
+    "quantification_method": "isotonic",
     "imaging_mode": "auto",
 }
 
@@ -103,7 +103,7 @@ class ValidationIssue:
 
 def normalize_quantification_method(value: Any) -> str:
     if value is None:
-        return "quadratic"
+        return "isotonic"
     text = str(value).strip().lower().replace(" ", "")
     aliases = {
         "isotonic": "isotonic",
@@ -124,7 +124,7 @@ def normalize_quantification_method(value: Any) -> str:
         return "quadratic"
     if "单调" in text or "isotonic" in text or "iso" in text:
         return "isotonic"
-    return "quadratic"
+    return "isotonic"
 
 
 def minimum_standard_count(quantification_method: Any) -> int:
@@ -295,7 +295,7 @@ def load_settings(user_input_dir: Path | None = None) -> dict[str, Any]:
             if not p.is_absolute():
                 run_kwargs[path_key] = ROOT / p
 
-    qm_raw = settings.get("quantification_method", settings.get("定量方法", "quadratic"))
+    qm_raw = settings.get("quantification_method", settings.get("定量方法", "isotonic"))
     im_raw = settings.get("imaging_mode", settings.get("成像模式", "auto"))
     run_kwargs["standard_concentrations"] = ",".join(str(x) for x in DEFAULT_CONCENTRATIONS)
     run_kwargs["quantification_method"] = normalize_quantification_method(qm_raw)

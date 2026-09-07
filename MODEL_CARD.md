@@ -7,7 +7,7 @@ TLC-RAPID uses a custom Ultralytics YOLOv5 segmentation model to locate TLC spot
 - Architecture family: YOLOv5 segmentation
 - Intended task: TLC spot instance segmentation
 - Supported image profiles: visible light, 254 nm, and 366 nm fluorescence
-- TLC-RAPID v1.0.0 weight SHA-256: `E507240E8C7BB8E8C3C57ABB20ADEE6FEBA78670F2EDF6E06BCF1AE12A4440A5`
+- TLC-RAPID v1.0 weight SHA-256: `E507240E8C7BB8E8C3C57ABB20ADEE6FEBA78670F2EDF6E06BCF1AE12A4440A5`
 - File size: 15,361,187 bytes
 - Model classes: 27
 - Training input size: 640 pixels

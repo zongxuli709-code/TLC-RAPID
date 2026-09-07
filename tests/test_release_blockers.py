@@ -18,9 +18,9 @@ class ReleaseBlockerTests(unittest.TestCase):
         self.assertEqual(_parse_value("2E4"), 20000.0)
 
     def test_public_version_and_default_method_are_stable(self) -> None:
-        self.assertEqual(APP_VERSION, "1.0.0")
-        self.assertEqual(normalize_quantification_method(None), "quadratic")
-        self.assertEqual(normalize_quantification_method("unknown"), "quadratic")
+        self.assertEqual(APP_VERSION, "1.0")
+        self.assertEqual(normalize_quantification_method(None), "isotonic")
+        self.assertEqual(normalize_quantification_method("unknown"), "isotonic")
 
     def test_provenance_helpers_are_deterministic(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -29,7 +29,7 @@ class ReleaseBlockerTests(unittest.TestCase):
             payload.write_bytes(b"TLC-RAPID")
             commit = "0123456789abcdef0123456789abcdef01234567"
             (root / "SOURCE_CODE.txt").write_text(
-                f"TLC-RAPID v1.0.0\n\nThis executable was built from commit:\n{commit}\n",
+                f"TLC-RAPID v1.0\n\nThis executable was built from commit:\n{commit}\n",
                 encoding="utf-8",
             )
 
@@ -46,6 +46,33 @@ class ReleaseBlockerTests(unittest.TestCase):
                 [0.1, 0.2, 0.3, 0.4],
                 quantification_method="quadratic",
             )
+
+    def test_quadratic_crossing_vertex_is_rejected(self) -> None:
+        from segment.analyze_engine import calculate_calibration_curve_quadratic
+
+        concentrations = [1.0, 3.0, 6.0, 12.0, 16.0]
+        # Vertex at 9.33, inside the 1-16 standard range from the review example.
+        responses = [-(x - 9.33) ** 2 + 100.0 for x in concentrations]
+        standards = [{"Sum_OD": value} for value in responses]
+        with self.assertRaisesRegex(ValueError, "non-monotonic within the standard concentration range"):
+            calculate_calibration_curve_quadratic(
+                standards,
+                concentrations,
+                quantification_method="quadratic",
+            )
+
+    def test_isotonic_accepts_same_cross_vertex_data(self) -> None:
+        from segment.analyze_engine import calculate_calibration_curve_quadratic
+
+        concentrations = [1.0, 3.0, 6.0, 12.0, 16.0]
+        responses = [-(x - 9.33) ** 2 + 100.0 for x in concentrations]
+        params, _ = calculate_calibration_curve_quadratic(
+            [{"Sum_OD": value} for value in responses],
+            concentrations,
+            quantification_method="isotonic",
+        )
+        self.assertEqual(params["quantification_method"], "isotonic")
+        self.assertTrue(params["quadratic_vertex_in_range"])
 
     def test_two_standards_are_rejected_before_analysis(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

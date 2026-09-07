@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.0.0 — 2026-09-02
+## 1.0 — 2026-09-07
 
 - Added traceable Windows release metadata and source-code links.
 - Added per-image success/failure reporting and an `Image_Status` worksheet.

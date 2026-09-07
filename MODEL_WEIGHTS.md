@@ -3,7 +3,8 @@
 ## Released artifact
 
 - File: `weights/best.pt`
-- TLC-RAPID release: v1.0.0
+- TLC-RAPID release: v1.0
+- Download: `https://github.com/zongxuli709-code/TLC-RAPID/releases/download/v1.0/best.pt`
 - SHA-256: `E507240E8C7BB8E8C3C57ABB20ADEE6FEBA78670F2EDF6E06BCF1AE12A4440A5`
 - Size: 15,361,187 bytes
 - Checkpoint timestamp metadata: `2025-04-29T19:05:58.850629`
@@ -55,4 +56,3 @@ Get-FileHash .\weights\best.pt -Algorithm SHA256
 
 Do not use a weight file whose hash differs from the value above without
 recording it as a different model release.
-

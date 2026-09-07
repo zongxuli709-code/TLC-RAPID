@@ -1,7 +1,7 @@
 TLC-RAPID Third-Party Notices
 =============================
 
-Release: v1.0.0
+Release: v1.0
 
 TLC-RAPID incorporates or redistributes the components below. Copyrights remain
 with their respective owners. This notice is a convenience; the complete texts

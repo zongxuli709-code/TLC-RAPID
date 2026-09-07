@@ -54,7 +54,7 @@ if ($dirty) {
 
 $ReleaseTag = (git describe --tags --exact-match 2>$null)
 if ($LASTEXITCODE -ne 0 -or -not $ReleaseTag) {
-    throw "Release build refused: HEAD must have an exact version tag such as v1.0.0."
+    throw "Release build refused: HEAD must have an exact version tag such as v1.0."
 }
 $ReleaseCommit = (git rev-parse HEAD).Trim()
 $AppVersion = $ReleaseTag.TrimStart('v')
@@ -71,7 +71,7 @@ if (-not (Test-Path -LiteralPath $WeightPath -PathType Leaf)) {
 }
 $ActualWeightHash = (Get-FileHash -LiteralPath $WeightPath -Algorithm SHA256).Hash
 if ($ActualWeightHash -ne $ExpectedWeightHash) {
-    throw "weights/best.pt does not match the documented v1.0.0 SHA-256."
+    throw "weights/best.pt does not match the documented v1.0 SHA-256."
 }
 
 python -m unittest discover -s tests -v
@@ -105,9 +105,6 @@ git archive --format=zip --output=$GitArchive HEAD
 if ($LASTEXITCODE -ne 0) { throw "git archive failed." }
 Expand-Archive -LiteralPath $GitArchive -DestinationPath $SourceStage
 Remove-Item -LiteralPath $GitArchive -Force
-
-New-Item -ItemType Directory -Path (Join-Path $SourceStage "weights") -Force | Out-Null
-Copy-Item -LiteralPath $WeightPath -Destination (Join-Path $SourceStage "weights\best.pt")
 
 Copy-Item -Path (Join-Path $DistRoot "*") -Destination $WindowsStage -Recurse -Force
 $WindowsImages = Join-Path $WindowsStage "user_input\images"

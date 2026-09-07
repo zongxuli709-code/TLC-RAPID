@@ -26,13 +26,13 @@
 - `example-visible.jpg`：可见光图，标准浓度从左至右为 0.03125、0.0625、0.125、0.25、0.5 mg/mL。
 - `example-uv366.jpg`：366 nm 图，标准浓度从左至右为 0.125、0.2、0.25、0.5、1.0 mg/mL。
 
-正式用户包仅支持 64 位 Windows。解压后直接双击 `TLC-RAPID.exe`，无需安装 Python。源码环境和复现方法由开发者参阅 [GitHub 源码仓库中的 REPRODUCIBILITY.md](https://github.com/zongxuli709-code/TLC-RAPID/blob/v1.0.0/REPRODUCIBILITY.md)。
+正式用户包仅支持 64 位 Windows。解压后直接双击 `TLC-RAPID.exe`，无需安装 Python。源码环境和复现方法由开发者参阅 [GitHub 源码仓库中的 REPRODUCIBILITY.md](https://github.com/zongxuli709-code/TLC-RAPID/blob/v1.0/REPRODUCIBILITY.md)。
 
 ## 分析设置
 
 **标准品浓度**（`user_input/standard_concentrations.csv`）：按斑点从左至右填写各标准品浓度；`(default)` 行为全局默认，也可按图片文件名单独设置。
 
-标准品数量**不固定为 5**。论文默认的二次拟合流程至少需要 **4 个互不重复的非负标准浓度**；等单调模式至少需要 **3 个**。软件以该表中有数值的 `standard_*` 列数为准：最左侧对应个数的斑点判为标准品，其右侧斑点判为待测样品。模板中的五列仅为示例，可按实际情况增删 `standard_*` 列。
+标准品数量**不固定为 5**。默认等单调流程至少需要 **3 个互不重复的非负标准浓度**；用于复现论文计算的可选二次拟合模式至少需要 **4 个**，且拟合抛物线的顶点不得落在标准浓度范围内。软件以该表中有数值的 `standard_*` 列数为准：最左侧对应个数的斑点判为标准品，其右侧斑点判为待测样品。模板中的五列仅为示例，可按实际情况增删 `standard_*` 列。
 
 | image_filename | standard_1 | standard_2 | … | notes |
 |----------------|------------|------------|---|-------|
@@ -44,7 +44,7 @@
 | 参数 | 推荐值 | 说明 |
 |------|--------|------|
 | imaging_mode | 366nm / visible / 254nm | 366 nm 荧光板建议设 366nm，勿依赖 auto（四边偏暗或非蓝边时可能误用 IOD） |
-| quantification_method | quadratic | 论文及模板默认流程；`isotonic` 为等单调备选方法 |
+| quantification_method | isotonic | 默认等单调流程；`quadratic` 仅用于复现论文计算 |
 | confidence_threshold | 0.15 | 检测置信度 |
 
 ## 手动补标

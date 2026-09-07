@@ -5,10 +5,9 @@ standard_count,5,Number of reference-standard spots per image
 imaging_mode,auto,Automatically select visible or 366 nm processing
 y_axis_type,sum_od,Legacy; imaging_mode selects IGI or IOD
 transform_type,auto,Legacy parameter
-quantification_method,quadratic,Paper/default quantification method
+quantification_method,isotonic,Default monotonic quantification; use quadratic only to reproduce paper calculations
 roi_width,130,Analysis ROI width in pixels
 roi_height,35,Analysis ROI height in pixels
 confidence_threshold,0.15,Detection confidence threshold
 y_tolerance,60,Horizontal band tolerance in pixels
 images_folder,images,Input images subfolder under user_input
-
