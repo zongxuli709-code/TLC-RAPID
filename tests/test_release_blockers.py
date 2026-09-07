@@ -9,13 +9,24 @@ from pathlib import Path
 from app_metadata import APP_VERSION, get_git_commit, sha256_file
 from evaluate_quantification import evaluate_quantification_table
 from run_testset_eval import summarize_review_sheet
-from utils.load_user_config import _parse_value, normalize_quantification_method, validate_user_input
+from utils.load_user_config import (
+    _parse_value,
+    has_explicit_concentrations,
+    normalize_quantification_method,
+    validate_user_input,
+)
 
 
 class ReleaseBlockerTests(unittest.TestCase):
     def test_scientific_notation_is_numeric(self) -> None:
         self.assertEqual(_parse_value("1e-3"), 0.001)
         self.assertEqual(_parse_value("2E4"), 20000.0)
+
+    def test_equal_to_default_is_still_an_explicit_image_override(self) -> None:
+        values = [0.125, 0.2, 0.25, 0.5, 1.0]
+        concentrations = {"_default": values, "example-2.jpg": values}
+        self.assertTrue(has_explicit_concentrations(concentrations, "example-2.jpg"))
+        self.assertFalse(has_explicit_concentrations(concentrations, "unlisted.jpg"))
 
     def test_public_version_and_default_method_are_stable(self) -> None:
         self.assertEqual(APP_VERSION, "1.0")
@@ -62,7 +73,10 @@ class ReleaseBlockerTests(unittest.TestCase):
             )
 
     def test_isotonic_accepts_same_cross_vertex_data(self) -> None:
-        from segment.analyze_engine import calculate_calibration_curve_quadratic
+        from segment.analyze_engine import (
+            calculate_calibration_curve_quadratic,
+            calculate_sample_concentrations_quadratic,
+        )
 
         concentrations = [1.0, 3.0, 6.0, 12.0, 16.0]
         responses = [-(x - 9.33) ** 2 + 100.0 for x in concentrations]
@@ -73,6 +87,13 @@ class ReleaseBlockerTests(unittest.TestCase):
         )
         self.assertEqual(params["quantification_method"], "isotonic")
         self.assertTrue(params["quadratic_vertex_in_range"])
+        samples = calculate_sample_concentrations_quadratic(
+            [{"Sum_OD": 95.0, "Spot_Index": 5}],
+            params,
+        )
+        self.assertEqual(samples[0]["Concentration_Method"], "isotonic")
+        self.assertGreaterEqual(samples[0]["Calculated_Concentration"], min(concentrations))
+        self.assertLessEqual(samples[0]["Calculated_Concentration"], max(concentrations))
 
     def test_two_standards_are_rejected_before_analysis(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

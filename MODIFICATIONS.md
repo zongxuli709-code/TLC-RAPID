@@ -12,10 +12,9 @@ section 5(a).
 - Starting revision: **not recoverable from the current repository history**
 
 The local source strongly resembles the YOLOv5 v7-era segmentation code, but a
-tag or commit must not be inferred from resemblance. The project authors should
-replace the line above with the exact upstream commit from their original clone,
-training environment, archive, or laboratory record before final archival
-submission. The `best.pt` checkpoint contains no upstream Git commit metadata.
+tag or commit is not inferred from resemblance. The original clone and training
+records available for this release do not identify the starting commit, and the
+stripped `best.pt` checkpoint contains no upstream Git commit metadata.
 
 ## TLC-RAPID modifications
 
@@ -46,4 +45,3 @@ Anyone conveying a modified TLC-RAPID version must keep applicable upstream
 notices and add a dated description of their own changes. A convenient format
 is a new section in this file containing the modifier, date, source revision,
 and affected files.
-

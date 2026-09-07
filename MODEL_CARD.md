@@ -24,17 +24,19 @@ The model is intended for research use on TLC plate images acquired under condit
 - Manual marking changes the final spot list and must be reported when used.
 - Concentrations outside the standard-response range are flagged and should not be interpreted as validated measurements.
 
-## Information required before manuscript submission
+## Evaluation and missing provenance
 
-Complete the following from the final experimental records:
-
-- Training/validation/test image counts and plate sources
-- Annotation protocol and annotator agreement
-- Exact upstream YOLOv5 repository commit and pretrained checkpoint
-- Training command, hyperparameters, augmentations, epochs, image size, batch size, seed, and hardware
-- Validation-set model selection rule
-- Independent test-set Precision, Recall, F1, mask IoU, and mAP
-- Data and weight licenses, public archive URL, and DOI if available
+- Development collection reported in the manuscript: approximately 1,000 images.
+- Independent test subset: 82 images, 745 target bands, TP=711, FP=6, FN=34.
+- Independent-test precision: 99.16%; recall: 95.44%; F1-score: 97.26%.
+- Recoverable training settings: 1,000 requested epochs, patience 100, batch 16,
+  image size 640, SGD, seed 0, CUDA device 0, and the augmentations listed in
+  `MODEL_WEIGHTS.md`.
+- Not recoverable from the stripped checkpoint or repository: exact upstream
+  YOLOv5 commit, final selected epoch, training/validation manifests, plate
+  grouping, annotator agreement, mask IoU, mAP, and validation selection rule.
+- The development and independent-test images have no public DOI or archive in
+  this release. The five bundled images are workflow examples, not test data.
 
 The checkpoint's recoverable training settings and its public-release license
 are documented in [MODEL_WEIGHTS.md](MODEL_WEIGHTS.md). The upstream Git commit,

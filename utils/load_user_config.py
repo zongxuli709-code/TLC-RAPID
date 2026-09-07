@@ -379,6 +379,19 @@ def get_concentrations_for_image(concentrations_by_image: dict[str, list[float]]
     return concentrations_by_image.get("_default", list(DEFAULT_CONCENTRATIONS))
 
 
+def has_explicit_concentrations(concentrations_by_image: dict[str, list[float]], image_name: str) -> bool:
+    """Return whether the table contains a filename or filename-stem override."""
+    norm_name = _normalize_image_key(image_name)
+    stem_name = Path(norm_name).stem
+    for key in concentrations_by_image:
+        if key == "_default":
+            continue
+        normalized_key = _normalize_image_key(key)
+        if normalized_key == norm_name or Path(normalized_key).stem == stem_name:
+            return True
+    return False
+
+
 def count_images(source: Path) -> int:
     if not source.is_dir():
         return 0
@@ -489,7 +502,7 @@ def validate_user_input(user_input_dir: Path | None = None) -> list[ValidationIs
                 )
             )
         else:
-            quantification_method = settings.get("quantification_method", "quadratic")
+            quantification_method = settings.get("quantification_method", "isotonic")
             minimum_count = minimum_standard_count(quantification_method)
             for image_name, concentrations in concentrations_by_image.items():
                 label = "(default)" if image_name == "_default" else image_name

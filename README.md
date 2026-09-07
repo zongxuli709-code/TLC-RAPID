@@ -21,14 +21,15 @@ Chinese instructions: [README_zh.md](README_zh.md)
 
 ### Included example
 
-The Windows user package includes two anonymized example images with per-image
+The Windows user package includes five anonymized example images with per-image
 standard concentrations, so a complete workflow can be tried immediately.
 They are workflow demonstrations, not a validation benchmark. The source
 materials and concentration mapping are documented in
 [`example_data`](example_data/README.md).
 
-- `example-visible.jpg`: 0.03125, 0.0625, 0.125, 0.25, and 0.5 mg/mL.
-- `example-uv366.jpg`: 0.125, 0.2, 0.25, 0.5, and 1.0 mg/mL.
+The exact per-image standard concentrations are recorded in
+`user_input/standard_concentrations.csv`; `example-3.jpg` intentionally uses a
+descending left-to-right concentration series.
 
 The user package supports 64-bit Windows only. Extract it and double-click
 `TLC-RAPID.exe`; Python is not required. Developers can find the source

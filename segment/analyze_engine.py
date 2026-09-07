@@ -30,14 +30,12 @@ Usage - formats:
 
 import argparse
 import json
-import os
 import platform
 import sys
 from datetime import datetime
 from pathlib import Path
 import pandas as pd
 import numpy as np
-from scipy import integrate
 import matplotlib.pyplot as plt
 from sklearn.linear_model import LinearRegression
 from sklearn.isotonic import IsotonicRegression
@@ -47,6 +45,7 @@ from scipy import stats
 import torch
 
 from app_metadata import build_provenance
+from utils.calibration_safety import inspect_quadratic_domain, require_unambiguous_quadratic
 
 FILE = Path(__file__).resolve()
 if getattr(sys, "frozen", False):
@@ -887,8 +886,6 @@ def calculate_calibration_curve_quadratic(standard_results, standard_concentrati
         iso_r2 >= r_squared or r_squared < 0.75 or abs(spearman_used) < 0.8
     )
 
-    from utils.calibration_safety import inspect_quadratic_domain, require_unambiguous_quadratic
-
     quadratic_domain = inspect_quadratic_domain(
         float(coefs[0]), float(coefs[1]), float(concentrations.min()), float(concentrations.max())
     )
@@ -1051,8 +1048,6 @@ def solve_concentration_from_quadratic(y_value: float, calibration_params: dict)
     ys = calibration_params.get("y_original", [])
     fallback = _interp_concentration_from_standards(y_value, xs, ys)
 
-    from utils.calibration_safety import inspect_quadratic_domain, require_unambiguous_quadratic
-
     require_unambiguous_quadratic(inspect_quadratic_domain(a, b, cmin, cmax))
 
     if abs(a) < 1e-12:
@@ -1086,23 +1081,13 @@ def solve_concentration_from_quadratic(y_value: float, calibration_params: dict)
 
 def calculate_sample_concentrations_quadratic(sample_results, calibration_params):
     """反算样品浓度：优先等单调回归，其次二次反解/邻近估计。"""
-    r2 = float(calibration_params.get("r_squared", 1.0))
     xs = np.asarray(calibration_params.get("X_original", []), dtype=float)
-    ys = np.asarray(calibration_params.get("y_original", []), dtype=float)
     iso = calibration_params.get("isotonic_model")
-    method_mode = str(calibration_params.get("quantification_method", "quadratic")).lower()
+    method_mode = str(calibration_params.get("quantification_method", "isotonic")).lower()
     use_isotonic = method_mode == "isotonic" and bool(calibration_params.get("use_isotonic")) and iso is not None
-
-    prefer_interp = method_mode == "quadratic" and (r2 < 0.75)
-    if xs.size >= 2 and ys.size == xs.size:
-        y_sorted = ys[np.argsort(xs)]
-        diffs = np.diff(y_sorted)
-        monotonic = np.all(diffs >= -1e-9) or np.all(diffs <= 1e-9)
-        prefer_interp = prefer_interp or (not monotonic)
 
     cmin = float(calibration_params.get("conc_min", 0.0))
     cmax = float(calibration_params.get("conc_max", 1.0))
-    mid = (cmin + cmax) / 2.0
 
     for result in sample_results:
         y_value = _extract_y_value(result, calibration_params["y_axis_type"])
@@ -1111,8 +1096,6 @@ def calculate_sample_concentrations_quadratic(sample_results, calibration_params
             calibration_params.get("X_original", []),
             calibration_params.get("y_original", []),
         )
-        quad = solve_concentration_from_quadratic(y_value, calibration_params)
-
         if use_isotonic:
             try:
                 conc = float(iso.predict([y_value])[0])
@@ -1121,18 +1104,12 @@ def calculate_sample_concentrations_quadratic(sample_results, calibration_params
                 conc = interp
                 method = "interp_fallback"
         elif method_mode == "quadratic":
+            quad = solve_concentration_from_quadratic(y_value, calibration_params)
             conc = quad if quad > 0 else interp
             method = "quadratic" if quad > 0 else "interp_fallback"
-        elif prefer_interp:
-            if cmin * 0.3 <= quad <= cmax * 3.0 and quad > 0:
-                conc = quad if abs(quad - mid) <= abs(interp - mid) else interp
-                method = "quadratic+interp"
-            else:
-                conc = interp
-                method = "interp_fallback"
         else:
-            conc = quad if quad > 0 else interp
-            method = "quadratic" if quad > 0 else "interp_fallback"
+            conc = interp
+            method = "interp_fallback"
 
         if conc <= 0 and xs.size:
             conc = interp if interp > 0 else float(max(cmin, 1e-12))
@@ -1177,7 +1154,7 @@ def plot_calibration_curve_quadratic(standard_results, standard_concentrations, 
     bg_name = "Blue background" if background_type == "blue" else "Other background"
     spearman = calibration_params.get("spearman", None)
     use_isotonic = bool(calibration_params.get("use_isotonic"))
-    quant_mode = str(calibration_params.get("quantification_method", "quadratic")).lower()
+    quant_mode = str(calibration_params.get("quantification_method", "isotonic")).lower()
 
     order = np.argsort(concentrations)
     x_sorted = concentrations[order]
@@ -2424,11 +2401,11 @@ def run(
                 image_conc = standard_conc
                 image_standard_num = standard_num
                 if concentrations_by_image:
-                    from utils.load_user_config import get_concentrations_for_image
+                    from utils.load_user_config import get_concentrations_for_image, has_explicit_concentrations
                     image_conc = get_concentrations_for_image(concentrations_by_image, p.name)
                     image_standard_num = len(image_conc)
                     LOGGER.info(f"Image [{p.name}] standard concentrations: {image_conc}")
-                    if image_conc == concentrations_by_image.get("_default", standard_conc):
+                    if not has_explicit_concentrations(concentrations_by_image, p.name):
                         LOGGER.warning(
                             f"Image [{p.name}] not in concentration table; using (default) row. "
                             f"Expected filename in table: {p.name}"

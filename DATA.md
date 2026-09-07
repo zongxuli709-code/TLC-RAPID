@@ -4,25 +4,29 @@ TLC-RAPID does not include private experimental images in the source repository 
 
 ## Bundled workflow example
 
-Two anonymized demonstration images are distributed in `example_data/` with
+Five anonymized demonstration images are distributed in `example_data/` with
 their per-image standard concentrations and an explicit data license. The
 release builder copies them into `user_input/` so a new user can run the
 workflow immediately. They are not part of the training, validation, or
 independent test sets and must not be used as a performance benchmark. See
 `example_data/README.md` and `example_data/DATA_LICENSE.txt`.
 
-## Required dataset description
+## Dataset record
 
-Before manuscript submission, record the following for each dataset:
+The manuscript reports a development collection of approximately 1,000 TLC
+images: approximately 500 visible-light, 350 at 366 nm, and 150 at 254 nm.
+Target-band boundaries were annotated manually with LabelMe and converted to
+the YOLO segmentation format.
 
-- Plate chemistry and manufacturer
-- Imaging device, distance, exposure, resolution, illumination, and wavelength
-- Number of plates, images, spots, compounds, and concentration levels
-- Inclusion/exclusion criteria
-- Annotation format and quality-control procedure
-- Whether images from the same physical plate or experiment can occur in more than one split
-- Fixed training, validation, and independent test manifests
-- De-identification and permission/consent status where applicable
+The independent standard test subset contains 82 images and 745 manually
+verified target bands: 31 visible-light images, 37 at 366 nm, and 14 at 254 nm.
+At confidence 0.15, the reported totals are TP=711, FP=6, and FN=34
+(precision 99.16%, recall 95.44%, F1 97.26%).
+
+The repository does not contain the laboratory manifests needed to verify the
+training/validation split, physical-plate grouping, acquisition settings, or
+whether images from one physical plate occur in more than one split. These
+facts remain unavailable and must not be inferred from image counts.
 
 ## Split policy
 
@@ -30,4 +34,7 @@ Thresholds and model choices must be selected using the training and validation 
 
 ## Public artifacts
 
-Add the final dataset or controlled-access archive URL, DOI, license, and checksums here. If the raw images cannot be shared, provide at least a non-identifying example dataset, the frozen file manifests, annotations or aggregate ground truth, and the exact evaluation commands.
+No public archive or DOI is currently available for the development and test
+datasets. The release provides only the five non-identifying workflow examples,
+their concentration mapping, aggregate independent-test ground truth, and the
+evaluation commands in `REPRODUCIBILITY.md`.

@@ -21,10 +21,10 @@
 
 ### 随包示例
 
-正式用户包内已经预置两张匿名化示例图和对应的逐图标准浓度，解压后可直接运行。示例仅用于确认完整工作流程，不是性能验证数据集。源码包中的原始示例材料位于 [`example_data`](example_data/README.md)。
+正式用户包内已经预置五张匿名化示例图和对应的逐图标准浓度，解压后可直接运行。示例仅用于确认完整工作流程，不是性能验证数据集。源码包中的原始示例材料位于 [`example_data`](example_data/README.md)。
 
-- `example-visible.jpg`：可见光图，标准浓度从左至右为 0.03125、0.0625、0.125、0.25、0.5 mg/mL。
-- `example-uv366.jpg`：366 nm 图，标准浓度从左至右为 0.125、0.2、0.25、0.5、1.0 mg/mL。
+每张图的准确标准浓度记录在 `user_input/standard_concentrations.csv`；其中
+`example-3.jpg` 有意采用从左到右递减的标准浓度，用于验证方向处理。
 
 正式用户包仅支持 64 位 Windows。解压后直接双击 `TLC-RAPID.exe`，无需安装 Python。源码环境和复现方法由开发者参阅 [GitHub 源码仓库中的 REPRODUCIBILITY.md](https://github.com/zongxuli709-code/TLC-RAPID/blob/v1.0/REPRODUCIBILITY.md)。
 
