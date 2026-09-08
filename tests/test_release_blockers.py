@@ -30,8 +30,9 @@ class ReleaseBlockerTests(unittest.TestCase):
 
     def test_public_version_and_default_method_are_stable(self) -> None:
         self.assertEqual(APP_VERSION, "1.0")
-        self.assertEqual(normalize_quantification_method(None), "isotonic")
-        self.assertEqual(normalize_quantification_method("unknown"), "isotonic")
+        self.assertEqual(normalize_quantification_method(None), "quadratic")
+        self.assertEqual(normalize_quantification_method("unknown"), "quadratic")
+        self.assertEqual(normalize_quantification_method("linear"), "linear")
 
     def test_provenance_helpers_are_deterministic(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -48,52 +49,73 @@ class ReleaseBlockerTests(unittest.TestCase):
             self.assertEqual(get_git_commit(root), commit)
 
     def test_calibration_does_not_silently_reverse_standard_labels(self) -> None:
-        from segment.analyze_engine import calculate_calibration_curve_quadratic
+        from segment.analyze_engine import fit_calibration_model
 
         standard_results = [{"Sum_OD": value} for value in (4.0, 3.0, 2.0, 1.0)]
         with self.assertRaisesRegex(ValueError, "will not relabel standards automatically"):
-            calculate_calibration_curve_quadratic(
+            fit_calibration_model(
                 standard_results,
                 [0.1, 0.2, 0.3, 0.4],
                 quantification_method="quadratic",
             )
 
-    def test_quadratic_crossing_vertex_is_rejected(self) -> None:
-        from segment.analyze_engine import calculate_calibration_curve_quadratic
+    def test_quadratic_crossing_vertex_uses_recorded_linear_fallback(self) -> None:
+        from segment.analyze_engine import fit_calibration_model
 
         concentrations = [1.0, 3.0, 6.0, 12.0, 16.0]
         # Vertex at 9.33, inside the 1-16 standard range from the review example.
         responses = [-(x - 9.33) ** 2 + 100.0 for x in concentrations]
         standards = [{"Sum_OD": value} for value in responses]
-        with self.assertRaisesRegex(ValueError, "non-monotonic within the standard concentration range"):
-            calculate_calibration_curve_quadratic(
-                standards,
-                concentrations,
-                quantification_method="quadratic",
-            )
+        params, _ = fit_calibration_model(
+            standards,
+            concentrations,
+            quantification_method="quadratic",
+        )
+        self.assertEqual(params["requested_quantification_method"], "quadratic")
+        self.assertEqual(params["quantification_method"], "linear")
+        self.assertIn("quadratic_vertex_in_standard_range", params["calibration_fallback_reason"])
 
-    def test_isotonic_accepts_same_cross_vertex_data(self) -> None:
+    def test_manuscript_quadratic_models_are_unambiguous_in_validated_ranges(self) -> None:
+        from segment.analyze_engine import fit_calibration_model
+
+        cases = (
+            ([-8.3248, 183.89, 591.89], [0.70, 2.0, 5.0, 8.0, 11.0]),
+            ([-16068.0, 73332.0, 438019.0], [0.25, 0.50, 1.0, 1.5, 2.0]),
+            ([-3.7812, 70.555, 10.928], [0.50, 1.0, 2.0, 4.0, 8.0]),
+        )
+        for coefs, concentrations in cases:
+            with self.subTest(coefs=coefs):
+                responses = [coefs[0] * x * x + coefs[1] * x + coefs[2] for x in concentrations]
+                params, r_squared = fit_calibration_model(
+                    [{"Sum_OD": value} for value in responses],
+                    concentrations,
+                    quantification_method="quadratic",
+                )
+                self.assertEqual(params["quantification_method"], "quadratic")
+                self.assertEqual(params["calibration_fallback_reason"], "")
+                self.assertAlmostEqual(r_squared, 1.0, places=10)
+
+    def test_linear_is_available_for_cross_vertex_data(self) -> None:
         from segment.analyze_engine import (
-            calculate_calibration_curve_quadratic,
-            calculate_sample_concentrations_quadratic,
+            calculate_sample_concentrations,
+            fit_calibration_model,
         )
 
         concentrations = [1.0, 3.0, 6.0, 12.0, 16.0]
         responses = [-(x - 9.33) ** 2 + 100.0 for x in concentrations]
-        params, _ = calculate_calibration_curve_quadratic(
+        params, _ = fit_calibration_model(
             [{"Sum_OD": value} for value in responses],
             concentrations,
-            quantification_method="isotonic",
+            quantification_method="linear",
         )
-        self.assertEqual(params["quantification_method"], "isotonic")
-        self.assertTrue(params["quadratic_vertex_in_range"])
-        samples = calculate_sample_concentrations_quadratic(
+        self.assertEqual(params["quantification_method"], "linear")
+        samples = calculate_sample_concentrations(
             [{"Sum_OD": 95.0, "Spot_Index": 5}],
             params,
         )
-        self.assertEqual(samples[0]["Concentration_Method"], "isotonic")
-        self.assertGreaterEqual(samples[0]["Calculated_Concentration"], min(concentrations))
-        self.assertLessEqual(samples[0]["Calculated_Concentration"], max(concentrations))
+        self.assertEqual(samples[0]["Concentration_Method"], "linear")
+        self.assertGreaterEqual(samples[0]["Calculated_Concentration"], 0.0)
+        self.assertTrue(samples[0]["Out_of_Range"])
 
     def test_two_standards_are_rejected_before_analysis(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -133,10 +155,10 @@ class ReleaseBlockerTests(unittest.TestCase):
     def test_quadratic_requires_four_standard_levels(self) -> None:
         self.assertIn("too_few_standards", self._validate_concentrations(["0.1", "0.2", "0.3"]))
 
-    def test_isotonic_allows_three_standard_levels(self) -> None:
+    def test_linear_allows_three_standard_levels(self) -> None:
         self.assertNotIn(
             "too_few_standards",
-            self._validate_concentrations(["0.1", "0.2", "0.3"], method="isotonic"),
+            self._validate_concentrations(["0.1", "0.2", "0.3"], method="linear"),
         )
 
     def test_duplicate_standard_levels_are_rejected(self) -> None:

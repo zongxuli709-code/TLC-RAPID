@@ -36,13 +36,12 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "dataset_config": "weights/boCenColor.yaml",
     "standard_count": 5,
     "y_axis_type": "sum_od",
-    "transform_type": "auto",
     "roi_width": 130,
     "roi_height": 35,
     "confidence_threshold": 0.15,
     "y_tolerance": 60,
     "images_folder": "images",
-    "quantification_method": "isotonic",
+    "quantification_method": "quadratic",
     "imaging_mode": "auto",
 }
 
@@ -59,8 +58,6 @@ SETTING_KEY_MAP = {
     "标准品数量": "standard_num",
     "y_axis_type": "y_axis_type",
     "纵坐标类型": "y_axis_type",
-    "transform_type": "transform_type",
-    "数据变换": "transform_type",
     "roi_width": "fixed_width",
     "矩形宽度": "fixed_width",
     "roi_height": "fixed_height",
@@ -103,13 +100,9 @@ class ValidationIssue:
 
 def normalize_quantification_method(value: Any) -> str:
     if value is None:
-        return "isotonic"
+        return "quadratic"
     text = str(value).strip().lower().replace(" ", "")
     aliases = {
-        "isotonic": "isotonic",
-        "iso": "isotonic",
-        "等单调": "isotonic",
-        "等单调回归": "isotonic",
         "quadratic": "quadratic",
         "quad": "quadratic",
         "poly2": "quadratic",
@@ -117,14 +110,18 @@ def normalize_quantification_method(value: Any) -> str:
         "二次反算": "quadratic",
         "二次方程": "quadratic",
         "二次方程反算": "quadratic",
+        "linear": "linear",
+        "lin": "linear",
+        "线性": "linear",
+        "线性回归": "linear",
     }
     if text in aliases:
         return aliases[text]
     if "二次" in text or "quadratic" in text or "poly" in text:
         return "quadratic"
-    if "单调" in text or "isotonic" in text or "iso" in text:
-        return "isotonic"
-    return "isotonic"
+    if "线性" in text or "linear" in text:
+        return "linear"
+    return "quadratic"
 
 
 def minimum_standard_count(quantification_method: Any) -> int:
@@ -295,7 +292,7 @@ def load_settings(user_input_dir: Path | None = None) -> dict[str, Any]:
             if not p.is_absolute():
                 run_kwargs[path_key] = ROOT / p
 
-    qm_raw = settings.get("quantification_method", settings.get("定量方法", "isotonic"))
+    qm_raw = settings.get("quantification_method", settings.get("定量方法", "quadratic"))
     im_raw = settings.get("imaging_mode", settings.get("成像模式", "auto"))
     run_kwargs["standard_concentrations"] = ",".join(str(x) for x in DEFAULT_CONCENTRATIONS)
     run_kwargs["quantification_method"] = normalize_quantification_method(qm_raw)
@@ -502,7 +499,7 @@ def validate_user_input(user_input_dir: Path | None = None) -> list[ValidationIs
                 )
             )
         else:
-            quantification_method = settings.get("quantification_method", "isotonic")
+            quantification_method = settings.get("quantification_method", "quadratic")
             minimum_count = minimum_standard_count(quantification_method)
             for image_name, concentrations in concentrations_by_image.items():
                 label = "(default)" if image_name == "_default" else image_name

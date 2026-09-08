@@ -38,7 +38,7 @@ E507240E8C7BB8E8C3C57ABB20ADEE6FEBA78670F2EDF6E06BCF1AE12A4440A5
 4. Run `python run_analysis.py --run` for a non-interactive run or `python run_analysis.py` for the launcher.
 5. Inspect `quantitative_analysis_all_images.xlsx`, including `Metadata` and `Image_Status`.
 
-The v1.0 default uses isotonic regression and requires at least three distinct non-negative standard concentrations. The optional quadratic mode reproduces the manuscript calculations, requires at least four standards, and is rejected when its fitted vertex lies inside the standard concentration range. TLC-RAPID never silently reverses standard labels.
+The v1.0 default requests quadratic regression, matching the manuscript model, and requires at least four distinct non-negative standard concentrations. Linear regression is the alternative and requires at least three standards. When a fitted quadratic vertex lies inside the standard range, the software uses linear regression to avoid ambiguous inversion and exports the requested method, actual method, and fallback reason. TLC-RAPID never silently reverses standard labels or hides a model fallback.
 
 ## Detection evaluation
 

@@ -17,7 +17,7 @@ without supplying their own data.
 - `images/example-5.jpg`: visible/254 nm profile; standards are 0.5, 0.75,
   1.0, 1.5, and 2.0 mg/mL.
 - `standard_concentrations.csv`: per-image concentration mapping.
-- `analysis_settings.csv`: demonstration settings with isotonic quantification.
+- `analysis_settings.csv`: demonstration settings with quadratic quantification; linear regression is available as an alternative.
 
 ## Try the example
 

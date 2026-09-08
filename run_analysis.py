@@ -123,7 +123,7 @@ def run_analysis(*, interactive: bool = True) -> int:
         weights=Path(settings["weights"]),
         standard_concentrations=settings.get("standard_concentrations", ""),
         standard_num=int(settings.get("standard_num", 0)),
-        quantification_method=settings.get("quantification_method", "isotonic"),
+        quantification_method=settings.get("quantification_method", "quadratic"),
         imaging_mode=settings.get("imaging_mode", "auto"),
         per_image_conc=concentrations_by_image,
     )

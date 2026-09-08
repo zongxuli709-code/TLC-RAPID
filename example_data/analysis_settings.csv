@@ -4,8 +4,7 @@ dataset_config,weights/boCenColor.yaml,Class names configuration file
 standard_count,5,Number of reference-standard spots per image
 imaging_mode,auto,Automatically select visible or 366 nm processing
 y_axis_type,sum_od,Legacy; imaging_mode selects IGI or IOD
-transform_type,auto,Legacy parameter
-quantification_method,isotonic,Default monotonic quantification; use quadratic only to reproduce paper calculations
+quantification_method,quadratic,Default quadratic regression; use linear as the alternative
 roi_width,130,Analysis ROI width in pixels
 roi_height,35,Analysis ROI height in pixels
 confidence_threshold,0.15,Detection confidence threshold

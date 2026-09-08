@@ -75,7 +75,10 @@ def print_config_summary(
     imaging_mode: str,
     per_image_conc: dict[str, list[float]],
 ) -> None:
-    qm_label = "isotonic regression" if quantification_method == "isotonic" else "quadratic back-calculation"
+    qm_label = {
+        "quadratic": "quadratic regression back-calculation",
+        "linear": "linear regression back-calculation",
+    }.get(quantification_method, quantification_method)
     im_label = {
         "auto": "auto-detect",
         "366nm": "366 nm fluorescence (IGI)",

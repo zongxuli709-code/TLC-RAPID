@@ -2,6 +2,13 @@
 
 ## 1.0 — 2026-09-07
 
+- Set quadratic regression as the default quantification method and linear
+  regression as the only user-selectable alternative.
+- Removed isotonic regression and the obsolete response-transformation code.
+- Added a recorded linear fallback when a quadratic vertex lies inside the
+  standard range, avoiding ambiguous inverse roots.
+- Added `Calibration_Quality`; fits with R2 below 0.75 are flagged `poor_fit`
+  for review rather than being presented without a warning.
 - Added traceable Windows release metadata and source-code links.
 - Added per-image success/failure reporting and an `Image_Status` worksheet.
 - Added a reproducibility `Metadata` worksheet containing software, commit, model, configuration, dependency, and analysis information.

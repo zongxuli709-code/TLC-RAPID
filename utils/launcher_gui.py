@@ -45,8 +45,8 @@ IMAGING_CHOICES = (
     ("auto", ""),  # no hint text
 )
 METHOD_CHOICES = (
-    ("isotonic", ""),
-    ("quadratic", ""),
+    ("quadratic", "Default; reproduces the manuscript calculations"),
+    ("linear", "Alternative linear regression"),
 )
 
 
@@ -157,7 +157,7 @@ class LauncherApp(tk.Tk):
 
         settings = load_settings()
         self.imaging_var = tk.StringVar(value=str(settings.get("imaging_mode", "auto")))
-        self.method_var = tk.StringVar(value=str(settings.get("quantification_method", "isotonic")))
+        self.method_var = tk.StringVar(value=str(settings.get("quantification_method", "quadratic")))
 
         self._build()
         self.refresh_status()
@@ -362,7 +362,7 @@ class LauncherApp(tk.Tk):
             if self.imaging_var.get() not in {c[0] for c in IMAGING_CHOICES}:
                 self.imaging_var.set(str(settings.get("imaging_mode", "auto")))
             if self.method_var.get() not in {c[0] for c in METHOD_CHOICES}:
-                self.method_var.set(str(settings.get("quantification_method", "isotonic")))
+                self.method_var.set(str(settings.get("quantification_method", "quadratic")))
             self._update_option_hints()
 
         # Step 3 is always configurable; mark ready when steps 1-2 allow start

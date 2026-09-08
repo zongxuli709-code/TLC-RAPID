@@ -37,8 +37,6 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.linear_model import LinearRegression
-from sklearn.isotonic import IsotonicRegression
 from sklearn.metrics import r2_score
 from scipy import stats
 
@@ -48,6 +46,7 @@ from app_metadata import build_provenance
 from utils.calibration_safety import inspect_quadratic_domain, require_unambiguous_quadratic
 
 FILE = Path(__file__).resolve()
+CALIBRATION_R2_WARNING_THRESHOLD = 0.75
 if getattr(sys, "frozen", False):
     ROOT = Path(sys.executable).resolve().parent
 else:
@@ -719,16 +718,6 @@ def select_paper_response_axis(
     return y_axis_type, y_label, axis_source, spearman_abs
 
 
-def compute_gray_integral(gray_roi: np.ndarray, local_bg: float, mask_roi: np.ndarray | None = None,
-                          polarity: str = "auto") -> tuple[float, float]:
-    """
-    计算背景校正后的净信号积分（兼容旧接口）。
-    荧光板：I-bg；吸收板：bg-I。有 mask 时只统计斑点像素。
-    """
-    net_sum, net_mean, _ = compute_net_integral(gray_roi, local_bg, mask_roi, polarity=polarity)
-    return net_sum, net_mean
-
-
 def _extract_y_value(result: dict, y_axis_type: str) -> float:
     if y_axis_type == "peak_1d":
         return float(result.get("Peak_Area_1D", result.get("Net_Signal", 0.0)))
@@ -745,83 +734,34 @@ def _extract_y_value(result: dict, y_axis_type: str) -> float:
     return float(result.get("Net_Signal", result.get("Sum_Gray", 0.0)))
 
 
-def select_best_response_axis(standard_results, concentrations,
-                              background_type: str = "other") -> tuple[str, str, float]:
-    """
-    按板类型选定量指标（优先保证数据可用）：
-    - 蓝色/366nm 荧光板：只在灰度类里选（一维峰面积、净信号、灰度积分），不用光密度
-    - 其他颜色吸收板：优先光密度，必要时再用净信号/一维峰面积
-    会跳过“几乎全是 0 / 几乎无变化”的退化指标。
-    返回: (y_axis_type, 中文标签, |spearman|)
-    """
-    if background_type == "blue":
-        candidates = [
-            ("peak_1d", "1D peak area"),
-            ("net_signal", "Net signal (lane background subtracted)"),
-            ("sum_gray", "Gray integral (background subtracted)"),
-        ]
-        fallback_key, fallback_label = "net_signal", "Net signal (lane background subtracted)"
+def _fit_polynomial(concentrations: np.ndarray, responses: np.ndarray, method: str) -> tuple[list[float], float]:
+    """Return unified [a, b, c] coefficients and R2 for quadratic or linear regression."""
+    fitted = np.polyfit(concentrations, responses, deg=2 if method == "quadratic" else 1)
+    if method == "quadratic":
+        a, b, c = (float(value) for value in fitted)
     else:
-        candidates = [
-            ("sum_od", "Total OD (within mask)"),
-            ("peak_1d", "1D peak area"),
-            ("net_signal", "Net signal (lane background subtracted)"),
-            ("mean_gray", "Mean gray (background subtracted)"),
-        ]
-        fallback_key, fallback_label = "sum_od", "Total OD (within mask)"
-
-    conc = np.asarray(concentrations, dtype=float)
-    best_key, best_label, best_score = fallback_key, fallback_label, -1.0
-    scored = []
-
-    for key, label in candidates:
-        vals = np.asarray([_extract_y_value(r, key) for r in standard_results], dtype=float)
-        if vals.size < 2:
-            continue
-        # 退化指标：大半为 0，或几乎无动态范围 → 样品会全部预测成同一个浓度
-        nonzero_ratio = float(np.mean(np.abs(vals) > 1e-9))
-        dyn = float(np.ptp(vals))
-        scale = float(np.median(np.abs(vals[np.abs(vals) > 1e-9]))) if nonzero_ratio > 0 else 0.0
-        if nonzero_ratio < 0.6 or dyn <= max(1e-6, 0.01 * scale):
-            print(f"[Skip degenerate axis] {label}: nonzero={nonzero_ratio:.2f}, dynamic range={dyn:.4g}")
-            continue
-        try:
-            corr = float(stats.spearmanr(conc, vals).correlation)
-        except Exception:
-            corr = 0.0
-        if not np.isfinite(corr):
-            corr = 0.0
-        score = abs(corr)
-        scored.append((score, key, label, corr, vals))
-        if score > best_score:
-            best_key, best_label, best_score = key, label, score
-
-    if scored:
-        scored.sort(reverse=True, key=lambda x: x[0])
-        print(f"Response axis scores (plate={background_type}, high to low):")
-        for score, key, label, corr, vals in scored[:5]:
-            print(f"  {label}: |Spearman|={score:.3f} (r={corr:.3f}), values={np.round(vals, 1).tolist()}")
-    else:
-        print(f"[Warning] All candidates degenerate; fallback: {fallback_label}")
-
-    return best_key, best_label, best_score
+        b, c = (float(value) for value in fitted)
+        a = 0.0
+        if abs(b) < 1e-12:
+            raise ValueError("Linear calibration failed because the fitted slope is zero")
+    coefs = [a, b, c]
+    predicted = np.polyval(coefs, concentrations)
+    r_squared = float(r2_score(responses, predicted)) if len(np.unique(responses)) > 1 else 0.0
+    return coefs, r_squared
 
 
-def calculate_calibration_curve_quadratic(standard_results, standard_concentrations, y_axis_type="sum_od",
-                                          y_label: str | None = None,
-                                          quantification_method: str = "isotonic"):
-    """
-    稳健标准曲线：
-    1) 检查左右浓度顺序是否疑似录反，但不自动改写实验输入
-    2) 用等单调回归保证 响应→浓度 单调
-    3) 同时保留二次拟合用于绘图/对照
-    """
+def fit_calibration_model(standard_results, standard_concentrations, y_axis_type="sum_od",
+                          y_label: str | None = None,
+                          quantification_method: str = "quadratic"):
+    """Fit the selected calibration model without relabeling experimental inputs."""
     if len(standard_results) != len(standard_concentrations):
         raise ValueError("Standard count does not match concentration list length")
-    method = str(quantification_method or "isotonic").strip().lower()
-    required_count = 4 if method == "quadratic" else 3
+    requested_method = str(quantification_method or "quadratic").strip().lower()
+    if requested_method not in ("quadratic", "linear"):
+        requested_method = "quadratic"
+    required_count = 4 if requested_method == "quadratic" else 3
     if len(standard_results) < required_count:
-        raise ValueError(f"{method.capitalize()} calibration requires at least {required_count} standard points")
+        raise ValueError(f"{requested_method.capitalize()} calibration requires at least {required_count} standard points")
 
     if y_label is None:
         _, y_label = get_calibration_y_axis_for_background(
@@ -852,75 +792,51 @@ def calculate_calibration_curve_quadratic(standard_results, standard_concentrati
     else:
         print(f"Standard monotonicity: Spearman(conc, response)={spearman_fwd:.3f}")
 
-    # 二次拟合（原始点）
-    coefs = np.polyfit(concentrations, y_values, deg=2)  # [a, b, c]
-    y_pred = np.polyval(coefs, concentrations)
-    r_squared = float(r2_score(y_values, y_pred)) if len(np.unique(y_values)) > 1 else 0.0
-
-    spearman_used = spearman_fwd
-    increasing = bool(spearman_used >= 0)
-
-    # 等单调：响应 -> 浓度（提高定量稳定性）
-    iso = IsotonicRegression(increasing=increasing, out_of_bounds="clip")
-    try:
-        iso.fit(y_values, concentrations)
-        iso_pred = iso.predict(y_values)
-        iso_r2 = float(r2_score(concentrations, iso_pred)) if len(np.unique(concentrations)) > 1 else 0.0
-    except Exception as e:
-        print(f"Isotonic regression failed; fallback to quadratic: {e}")
-        iso = None
-        iso_r2 = -1.0
-
-    # 对响应做等单调平滑后再拟合二次，用于绘图更“顺”
-    iso_y = IsotonicRegression(increasing=increasing, out_of_bounds="clip")
-    try:
-        y_mono = iso_y.fit_transform(concentrations, y_values)
-        coefs_mono = np.polyfit(concentrations, y_mono, deg=2)
-        r2_mono = float(r2_score(y_mono, np.polyval(coefs_mono, concentrations)))
-    except Exception:
-        y_mono = y_values
-        coefs_mono = coefs
-        r2_mono = r_squared
-
-    use_isotonic = iso is not None and (
-        iso_r2 >= r_squared or r_squared < 0.75 or abs(spearman_used) < 0.8
-    )
-
-    quadratic_domain = inspect_quadratic_domain(
-        float(coefs[0]), float(coefs[1]), float(concentrations.min()), float(concentrations.max())
-    )
-    if method == "quadratic":
-        require_unambiguous_quadratic(quadratic_domain)
-        use_isotonic = False
-    elif method == "isotonic":
-        use_isotonic = iso is not None
+    method = requested_method
+    coefs, r_squared = _fit_polynomial(concentrations, y_values, method)
+    a, b, c = coefs
+    quadratic_domain = inspect_quadratic_domain(a, b, float(concentrations.min()), float(concentrations.max()))
+    fallback_reason = ""
+    if method == "quadratic" and quadratic_domain.vertex_in_range:
+        fallback_reason = (
+            "quadratic_vertex_in_standard_range: "
+            f"vertex={quadratic_domain.vertex:.6g}, range="
+            f"{float(concentrations.min()):.6g}-{float(concentrations.max()):.6g}"
+        )
+        LOGGER.warning(f"Unsafe quadratic inversion; using linear regression: {fallback_reason}")
+        method = "linear"
+        coefs, r_squared = _fit_polynomial(concentrations, y_values, method)
+        a, b, c = coefs
+    calibration_quality = "acceptable" if r_squared >= CALIBRATION_R2_WARNING_THRESHOLD else "poor_fit"
+    if calibration_quality == "poor_fit":
+        LOGGER.warning(
+            f"Calibration R2={r_squared:.4f} is below the warning threshold "
+            f"{CALIBRATION_R2_WARNING_THRESHOLD:.2f}; review standards and detected spots"
+        )
 
     calibration_params = {
-        "fit_type": "isotonic+quadratic" if use_isotonic else "quadratic",
-        "quantification_method": "isotonic" if use_isotonic else "quadratic",
-        "coefs": coefs.tolist(),
-        "coefs_mono": coefs_mono.tolist(),
-        "a": float(coefs[0]),
-        "b": float(coefs[1]),
-        "c": float(coefs[2]),
+        "fit_type": method,
+        "requested_quantification_method": requested_method,
+        "quantification_method": method,
+        "calibration_fallback_reason": fallback_reason,
+        "coefs": coefs,
+        "a": a,
+        "b": b,
+        "c": c,
         "r_squared": float(r_squared),
-        "r_squared_isotonic": float(iso_r2),
-        "r_squared_mono_curve": float(r2_mono),
+        "calibration_quality": calibration_quality,
         "y_axis_type": y_axis_type,
         "y_label": y_label,
         "x_label": "Concentration",
         "background_type": "blue" if y_axis_type in ("sum_gray", "net_signal") else "other",
         "X_original": concentrations.tolist(),
         "y_original": y_values.tolist(),
-        "y_monotonic": y_mono.tolist() if hasattr(y_mono, "tolist") else list(y_mono),
         "conc_min": float(concentrations.min()),
         "conc_max": float(concentrations.max()),
         "y_min": float(y_values.min()),
         "y_max": float(y_values.max()),
         "spearman": float(spearman_fwd),
         "order_reversed": order_reversed,
-        "use_isotonic": use_isotonic,
-        "isotonic_model": iso if use_isotonic else None,
         "quadratic_vertex": quadratic_domain.vertex,
         "quadratic_vertex_in_range": quadratic_domain.vertex_in_range,
     }
@@ -1079,12 +995,19 @@ def solve_concentration_from_quadratic(y_value: float, calibration_params: dict)
     return max(0.0, min(pool, key=lambda r: abs(r - target)))
 
 
-def calculate_sample_concentrations_quadratic(sample_results, calibration_params):
-    """反算样品浓度：优先等单调回归，其次二次反解/邻近估计。"""
+def solve_concentration_from_linear(y_value: float, calibration_params: dict) -> float:
+    """Back-calculate concentration from y = bx + c."""
+    slope = float(calibration_params["b"])
+    intercept = float(calibration_params["c"])
+    if abs(slope) < 1e-12:
+        raise ValueError("Linear calibration cannot be inverted because its slope is zero")
+    return float((y_value - intercept) / slope)
+
+
+def calculate_sample_concentrations(sample_results, calibration_params):
+    """Back-calculate sample concentrations with the explicitly selected model."""
     xs = np.asarray(calibration_params.get("X_original", []), dtype=float)
-    iso = calibration_params.get("isotonic_model")
-    method_mode = str(calibration_params.get("quantification_method", "isotonic")).lower()
-    use_isotonic = method_mode == "isotonic" and bool(calibration_params.get("use_isotonic")) and iso is not None
+    method_mode = str(calibration_params.get("quantification_method", "quadratic")).lower()
 
     cmin = float(calibration_params.get("conc_min", 0.0))
     cmax = float(calibration_params.get("conc_max", 1.0))
@@ -1096,20 +1019,16 @@ def calculate_sample_concentrations_quadratic(sample_results, calibration_params
             calibration_params.get("X_original", []),
             calibration_params.get("y_original", []),
         )
-        if use_isotonic:
-            try:
-                conc = float(iso.predict([y_value])[0])
-                method = "isotonic"
-            except Exception:
-                conc = interp
-                method = "interp_fallback"
-        elif method_mode == "quadratic":
+        if method_mode == "quadratic":
             quad = solve_concentration_from_quadratic(y_value, calibration_params)
             conc = quad if quad > 0 else interp
             method = "quadratic" if quad > 0 else "interp_fallback"
+        elif method_mode == "linear":
+            linear = solve_concentration_from_linear(y_value, calibration_params)
+            conc = linear if linear >= 0 else interp
+            method = "linear" if linear >= 0 else "interp_fallback"
         else:
-            conc = interp
-            method = "interp_fallback"
+            raise ValueError(f"Unsupported quantification method: {method_mode}")
 
         if conc <= 0 and xs.size:
             conc = interp if interp > 0 else float(max(cmin, 1e-12))
@@ -1133,14 +1052,9 @@ def calculate_sample_concentrations_quadratic(sample_results, calibration_params
     return sample_results
 
 
-def plot_calibration_curve_quadratic(standard_results, standard_concentrations, calibration_params, r_squared,
-                                       save_path, background_type="other"):
-    """
-    绘制标准曲线：
-    - 蓝点：实测响应（可能非单调）
-    - 绿线：等单调平滑后的校准曲线（实际定量主要用它）
-    - 红虚线：二次拟合（仅对照，可能呈 U 形）
-    """
+def plot_calibration_curve(standard_results, standard_concentrations, calibration_params, r_squared,
+                           save_path, background_type="other"):
+    """Plot measured standards and the selected calibration model."""
     plt.rcParams["font.sans-serif"] = ["DejaVu Sans", "Arial", "Helvetica", "sans-serif"]
     plt.rcParams["axes.unicode_minus"] = False
 
@@ -1148,63 +1062,40 @@ def plot_calibration_curve_quadratic(standard_results, standard_concentrations, 
     y_label = calibration_params["y_label"]
     concentrations = np.asarray(standard_concentrations, dtype=float)
     y_values = np.asarray([_extract_y_value(r, y_axis_type) for r in standard_results], dtype=float)
-    y_mono = np.asarray(calibration_params.get("y_monotonic", y_values), dtype=float)
-    if y_mono.shape != y_values.shape:
-        y_mono = y_values
     bg_name = "Blue background" if background_type == "blue" else "Other background"
     spearman = calibration_params.get("spearman", None)
-    use_isotonic = bool(calibration_params.get("use_isotonic"))
-    quant_mode = str(calibration_params.get("quantification_method", "isotonic")).lower()
+    quant_mode = str(calibration_params.get("quantification_method", "quadratic")).lower()
 
     order = np.argsort(concentrations)
     x_sorted = concentrations[order]
     y_sorted = y_values[order]
-    y_mono_sorted = y_mono[order]
-
     plt.figure(figsize=(12, 8))
-    plt.scatter(x_sorted, y_sorted, color="blue", s=70, label="Standards (measured, may be non-monotonic)", zorder=5)
+    plt.scatter(x_sorted, y_sorted, color="blue", s=70, label="Standards (measured)", zorder=5)
     for x, y in zip(x_sorted, y_sorted):
         plt.annotate(f"{x:.5f}", (x, y), textcoords="offset points", xytext=(5, 5), ha="left", fontsize=8, alpha=0.7)
-
-    x_dense = np.linspace(float(x_sorted.min()), float(x_sorted.max()), 200)
-    y_dense = np.interp(x_dense, x_sorted, y_mono_sorted)
-    if use_isotonic:
-        mono_label = "Isotonic calibration (quantification)"
-    else:
-        mono_label = "Monotonic smooth curve (reference)"
-    plt.plot(x_dense, y_dense, color="green", linewidth=2.5, label=mono_label, zorder=4)
-    plt.scatter(x_sorted, y_mono_sorted, color="limegreen", s=40, marker="s", alpha=0.8, zorder=4)
 
     x_min, x_max = float(x_sorted.min()), float(x_sorted.max())
     x_fit = np.linspace(max(0.0, x_min * 0.8), x_max * 1.2, 200)
     y_fit = np.polyval(calibration_params["coefs"], x_fit)
-    quad_r2 = float(calibration_params.get("r_squared", r_squared))
-    if use_isotonic:
-        quad_label = f"Quadratic fit (reference, R2={quad_r2:.3f})"
-        quad_style = ("r--", 1.5, 0.7)
-    else:
-        quad_label = f"Quadratic calibration (quantification, R2={quad_r2:.3f})"
-        quad_style = ("r-", 2.5, 1.0)
-    plt.plot(x_fit, y_fit, quad_style[0], linewidth=quad_style[1], alpha=quad_style[2], label=quad_label)
+    fit_r2 = float(calibration_params.get("r_squared", r_squared))
+    model_label = "Quadratic" if quant_mode == "quadratic" else "Linear"
+    plt.plot(x_fit, y_fit, "r-", linewidth=2.5, label=f"{model_label} calibration (R2={fit_r2:.3f})")
 
     plt.xlabel("Concentration", fontsize=12)
     plt.ylabel(y_label, fontsize=12)
     title = f"TLC calibration curve ({bg_name})\nConcentration vs {y_label}"
     if spearman is not None:
-        if use_isotonic:
-            title += f"\nMeasured Spearman={float(spearman):.3f} (green = isotonic quantification)"
-        else:
-            title += f"\nMeasured Spearman={float(spearman):.3f} (red = quadratic quantification)"
+        title += f"\nMeasured Spearman={float(spearman):.3f} (red = {quant_mode} quantification)"
     plt.title(title, fontsize=13)
     plt.legend(fontsize=9, loc="best")
     plt.grid(True, alpha=0.3)
 
     a, b, c = calibration_params["a"], calibration_params["b"], calibration_params["c"]
-    info = f"Quadratic: y={a:.4g}x^2+{b:.4g}x+{c:.4g} (R2={quad_r2:.4f})"
-    if use_isotonic:
-        info += f"\nMethod: isotonic regression (iso R2={float(calibration_params.get('r_squared_isotonic', 0)):.3f})"
+    if quant_mode == "quadratic":
+        equation = f"y={a:.4g}x^2+{b:.4g}x+{c:.4g}"
     else:
-        info += "\nMethod: quadratic back-calculation (paper reproduction mode)"
+        equation = f"y={b:.4g}x+{c:.4g}"
+    info = f"{model_label}: {equation} (R2={fit_r2:.4f})\nMethod: {quant_mode} regression back-calculation"
     plt.text(
         0.02, 0.98, info, transform=plt.gca().transAxes, fontsize=10,
         verticalalignment="top",
@@ -1521,301 +1412,6 @@ def calculate_peak_area(gray_im, mask, box, baseline_method='local', baseline_va
     return peak_area, baseline, spot_intensities
 
 
-def calculate_calibration_curve_enhanced(standard_results, standard_concentrations, y_axis_type='sum_od',
-                                         transform_type='none'):
-    """
-    增强的标准曲线计算，支持多种数据变换
-
-    参数:
-    - standard_results: 标准品斑点的结果列表
-    - standard_concentrations: 标准品浓度列表
-    - y_axis_type: 纵坐标类型 ('sum_gray', 'mean_gray', 'sum_od', 'mean_od')
-    - transform_type: 数据变换类型 ('none', 'log', 'sqrt', 'reciprocal', 'log_log', 'power')
-
-    返回:
-    - calibration_params: 校准曲线参数
-    - r_squared: 决定系数
-    """
-    if len(standard_results) != len(standard_concentrations):
-        raise ValueError("Standard count does not match concentration list length")
-
-    # 根据选择的纵坐标类型提取数据
-    if y_axis_type == 'sum_gray':
-        y_values = [result["Sum_Gray"] for result in standard_results]
-        y_label = "Total gray"
-    elif y_axis_type == 'mean_gray':
-        y_values = [result["Mean_Gray"] for result in standard_results]
-        y_label = "Mean gray"
-    elif y_axis_type == 'sum_od':
-        y_values = [result["Sum_OD"] for result in standard_results]
-        y_label = "Total OD"
-    elif y_axis_type == 'mean_od':
-        y_values = [result["Mean_OD"] for result in standard_results]
-        y_label = "Mean OD"
-    else:
-        raise ValueError("Unsupported y_axis_type")
-
-    concentrations = standard_concentrations
-
-    # 数据变换
-    X_orig = np.array(concentrations).reshape(-1, 1)
-    y_orig = np.array(y_values)
-
-    # 应用数据变换
-    if transform_type == 'log':
-        # 对数变换
-        X = np.log10(X_orig + 1e-10)  # 避免log(0)
-        y = y_orig
-        x_label = "log(Concentration)"
-    elif transform_type == 'sqrt':
-        # 平方根变换
-        X = np.sqrt(X_orig)
-        y = y_orig
-        x_label = "sqrt(Concentration)"
-    elif transform_type == 'reciprocal':
-        # 倒数变换
-        X = 1.0 / (X_orig + 1e-10)  # 避免除零
-        y = y_orig
-        x_label = "1/Concentration"
-    elif transform_type == 'log_log':
-        # 双对数变换
-        X = np.log10(X_orig + 1e-10)
-        y = np.log10(y_orig + 1e-10)
-        x_label = "log(Concentration)"
-        y_label = f"log({y_label})"
-    elif transform_type == 'power':
-        # 幂变换 (使用Box-Cox变换的简化版本)
-        X = X_orig
-        y = np.sqrt(y_orig)  # 使用平方根变换
-        y_label = f"√{y_label}"
-        x_label = "Concentration"
-    else:
-        # 无变换
-        X = X_orig
-        y = y_orig
-        x_label = "Concentration"
-
-    # 线性回归
-    model = LinearRegression()
-    model.fit(X, y)
-
-    # 计算R²
-    y_pred = model.predict(X)
-    r_squared = r2_score(y, y_pred)
-
-    calibration_params = {
-        'slope': model.coef_[0],
-        'intercept': model.intercept_,
-        'model': model,
-        'y_axis_type': y_axis_type,
-        'y_label': y_label,
-        'x_label': x_label,
-        'transform_type': transform_type,
-        'X_original': X_orig.flatten(),
-        'y_original': y_orig
-    }
-
-    return calibration_params, r_squared
-
-
-def calculate_sample_concentrations_enhanced(sample_results, calibration_params):
-    """
-    计算样品浓度 - 支持高精度和多种数据变换
-
-    参数:
-    - sample_results: 样品斑点的结果列表
-    - calibration_params: 校准曲线参数
-
-    返回:
-    - 包含浓度信息的样品结果列表
-    """
-    slope = calibration_params['slope']
-    intercept = calibration_params['intercept']
-    model = calibration_params['model']
-    y_axis_type = calibration_params['y_axis_type']
-    transform_type = calibration_params['transform_type']
-
-    for result in sample_results:
-        # 根据校准曲线使用的纵坐标类型选择相应的值
-        if y_axis_type == 'sum_gray':
-            y_value = result["Sum_Gray"]
-        elif y_axis_type == 'mean_gray':
-            y_value = result["Mean_Gray"]
-        elif y_axis_type == 'sum_od':
-            y_value = result["Sum_OD"]
-        elif y_axis_type == 'mean_od':
-            y_value = result["Mean_OD"]
-        else:
-            y_value = result["Sum_Gray"]  # 默认使用总灰度值
-
-        # 根据变换类型计算浓度
-        if transform_type == 'log':
-            # 对数变换的反函数
-            if slope != 0:
-                log_concentration = (y_value - intercept) / slope
-                concentration = 10 ** log_concentration
-            else:
-                concentration = 0
-        elif transform_type == 'sqrt':
-            # 平方根变换的反函数
-            if slope != 0:
-                sqrt_concentration = (y_value - intercept) / slope
-                concentration = sqrt_concentration ** 2
-            else:
-                concentration = 0
-        elif transform_type == 'reciprocal':
-            # 倒数变换的反函数
-            if slope != 0 and y_value != intercept:
-                reciprocal_concentration = (y_value - intercept) / slope
-                if reciprocal_concentration != 0:
-                    concentration = 1.0 / reciprocal_concentration
-                else:
-                    concentration = 0
-            else:
-                concentration = 0
-        elif transform_type == 'log_log':
-            # 双对数变换的反函数
-            if slope != 0:
-                log_y = np.log10(y_value + 1e-10)
-                log_concentration = (log_y - intercept) / slope
-                concentration = 10 ** log_concentration
-            else:
-                concentration = 0
-        elif transform_type == 'power':
-            # 幂变换的反函数
-            if slope != 0:
-                sqrt_y = np.sqrt(y_value)
-                concentration = (sqrt_y - intercept) / slope
-                concentration = concentration ** 2  # 因为我们用了平方根变换
-            else:
-                concentration = 0
-        else:
-            # 无变换
-            if slope != 0:
-                concentration = (y_value - intercept) / slope
-            else:
-                concentration = 0
-
-        # 确保浓度不为负
-        concentration = max(0, concentration)
-
-        result["Calculated_Concentration"] = concentration
-
-    return sample_results
-
-
-def plot_calibration_curve_enhanced(standard_results, standard_concentrations, calibration_params, r_squared,
-                                    save_path):
-    """
-    绘制增强的标准曲线图 - 支持多种数据变换和高精度显示
-    """
-    y_axis_type = calibration_params['y_axis_type']
-    y_label = calibration_params['y_label']
-    x_label = calibration_params['x_label']
-    transform_type = calibration_params['transform_type']
-
-    # 根据选择的纵坐标类型提取数据
-    if y_axis_type == 'sum_gray':
-        y_values = [result["Sum_Gray"] for result in standard_results]
-    elif y_axis_type == 'mean_gray':
-        y_values = [result["Mean_Gray"] for result in standard_results]
-    elif y_axis_type == 'sum_od':
-        y_values = [result["Sum_OD"] for result in standard_results]
-    elif y_axis_type == 'mean_od':
-        y_values = [result["Mean_OD"] for result in standard_results]
-
-    concentrations = standard_concentrations
-
-    plt.figure(figsize=(12, 8))
-
-    # 散点图
-    plt.scatter(concentrations, y_values, color='blue', s=60, label='Standard points', zorder=5)
-
-    # 在点上标注精确的浓度值
-    for i, (x, y) in enumerate(zip(concentrations, y_values)):
-        plt.annotate(f'{x:.5f}', (x, y), textcoords="offset points",
-                     xytext=(5, 5), ha='left', fontsize=8, alpha=0.7)
-
-    # 回归线
-    x_min, x_max = min(concentrations), max(concentrations)
-    x_fit = np.linspace(x_min, x_max, 100)
-
-    # 根据变换类型生成拟合线
-    if transform_type == 'log':
-        x_fit_transformed = np.log10(x_fit + 1e-10)
-        y_fit = calibration_params['slope'] * x_fit_transformed + calibration_params['intercept']
-    elif transform_type == 'sqrt':
-        x_fit_transformed = np.sqrt(x_fit)
-        y_fit = calibration_params['slope'] * x_fit_transformed + calibration_params['intercept']
-    elif transform_type == 'reciprocal':
-        x_fit_transformed = 1.0 / (x_fit + 1e-10)
-        y_fit = calibration_params['slope'] * x_fit_transformed + calibration_params['intercept']
-    elif transform_type == 'log_log':
-        x_fit_transformed = np.log10(x_fit + 1e-10)
-        y_fit_log = calibration_params['slope'] * x_fit_transformed + calibration_params['intercept']
-        y_fit = 10 ** y_fit_log
-    elif transform_type == 'power':
-        y_fit_sqrt = calibration_params['slope'] * x_fit + calibration_params['intercept']
-        y_fit = y_fit_sqrt ** 2
-    else:
-        y_fit = calibration_params['slope'] * x_fit + calibration_params['intercept']
-
-    plt.plot(x_fit, y_fit, 'r-', linewidth=2, label=f'Calibration curve (R2 = {r_squared:.6f})')
-
-    plt.xlabel(x_label, fontsize=12)
-    plt.ylabel(y_label, fontsize=12)
-    plt.title(f'TLC calibration - {x_label} vs {y_label}\nTransform: {transform_type}', fontsize=14)
-    plt.legend(fontsize=10)
-    plt.grid(True, alpha=0.3)
-
-    # 添加回归方程和统计信息
-    equation = f'y = {calibration_params["slope"]:.6f}x + {calibration_params["intercept"]:.6f}'
-    plt.text(0.05, 0.95, equation, transform=plt.gca().transAxes, fontsize=11,
-             verticalalignment='top', bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8))
-
-    plt.text(0.05, 0.85, f'R² = {r_squared:.6f}', transform=plt.gca().transAxes, fontsize=11,
-             verticalalignment='top', bbox=dict(boxstyle='round', facecolor='lightblue', alpha=0.8))
-
-    plt.tight_layout()
-    plt.savefig(save_path, dpi=300, bbox_inches='tight')
-    plt.close()
-
-
-def find_best_transform(standard_results, standard_concentrations, y_axis_type='sum_od'):
-    """
-    自动寻找最佳的数据变换方法
-
-    返回:
-    - best_transform: 最佳变换方法
-    - best_r_squared: 最佳R²值
-    - all_results: 所有变换方法的结果
-    """
-    transform_methods = ['none', 'log', 'sqrt', 'reciprocal', 'log_log', 'power']
-    best_r_squared = -1
-    best_transform = 'none'
-    all_results = {}
-
-    for transform in transform_methods:
-        try:
-            calibration_params, r_squared = calculate_calibration_curve_enhanced(
-                standard_results, standard_concentrations, y_axis_type, transform
-            )
-            all_results[transform] = {
-                'r_squared': r_squared,
-                'slope': calibration_params['slope'],
-                'intercept': calibration_params['intercept']
-            }
-
-            if r_squared > best_r_squared:
-                best_r_squared = r_squared
-                best_transform = transform
-        except Exception as e:
-            print(f"Transform {transform} failed: {e}")
-            continue
-
-    return best_transform, best_r_squared, all_results
-
-
 def process_spots_sorted(det, masks, gray_im, color_im, fixed_width, fixed_height, y_tolerance=60):
     """增强的斑点处理函数，包含详细的光密度计算和调试信息"""
     boxes = det[:, :4].cpu().numpy().astype(int)
@@ -2051,7 +1647,6 @@ def run(
         standard_num=5,  # 新增：标准品数量
         standard_concentrations="0.125,0.2,0.25,0.5,1",  # 默认标准品浓度
         y_axis_type='sum_od',  # 修改：默认使用总光密度值
-        transform_type='auto',  # 新增：数据变换类型
         mask_interference=True,  # 新增：是否遮盖水平线外干扰斑点后二次推理（默认启用）
         mask_color='background',  # 新增：遮盖颜色 background/white/black
         mask_pad=6,  # 新增：遮盖框膨胀像素
@@ -2061,7 +1656,7 @@ def run(
         manual_mark=True,  # 新增：启用手动矩形补标
         manual_save_json=True,  # 新增：保存手动框选json
         concentrations_by_image=None,  # 新增：按图片名读取浓度（由 run_analysis.py 传入）
-        quantification_method="isotonic",  # isotonic=默认; quadratic=论文复现模式
+        quantification_method="quadratic",  # quadratic=default; linear=alternative
         imaging_mode="auto",  # auto/366nm/visible/254nm，固定 IGI 或 IOD
 ):
     """Run YOLOv5 segmentation inference on diverse sources including images, videos, directories, and streams."""
@@ -2070,9 +1665,9 @@ def run(
         quantification_method = normalize_quantification_method(quantification_method)
         imaging_mode = normalize_imaging_mode(imaging_mode)
     except Exception:
-        quantification_method = str(quantification_method or "isotonic").strip().lower()
-        if quantification_method not in ("isotonic", "quadratic"):
-            quantification_method = "isotonic"
+        quantification_method = str(quantification_method or "quadratic").strip().lower()
+        if quantification_method not in ("quadratic", "linear"):
+            quantification_method = "quadratic"
         minimum_standard_count = lambda method: 4 if method == "quadratic" else 3
         imaging_mode = str(imaging_mode or "auto").strip().lower()
 
@@ -2134,7 +1729,7 @@ def run(
                                               "classes", "agnostic_nms", "augment", "visualize", "update", "project",
                                               "name", "exist_ok", "line_thickness", "hide_labels", "hide_conf", "half",
                                               "dnn", "vid_stride", "retina_masks", "fixed_width", "fixed_height",
-                                              "standard_num", "standard_concentrations", "y_axis_type", "transform_type",
+                                              "standard_num", "standard_concentrations", "y_axis_type",
                                               "quantification_method", "imaging_mode",
                                               "mask_interference", "mask_color", "mask_pad", "mask_save", "mask_x_margin",
                                               "y_tolerance",
@@ -2455,7 +2050,7 @@ def run(
                         result["Error_Message"] = ""
 
                     try:
-                        calibration_params, r_squared = calculate_calibration_curve_quadratic(
+                        calibration_params, r_squared = fit_calibration_model(
                             standard_results,
                             conc_for_fit,
                             y_axis_type=image_y_axis_type,
@@ -2463,18 +2058,23 @@ def run(
                             quantification_method=quantification_method,
                         )
                         calibration_params["background_type"] = background_type
-                        # 若浓度顺序被自动翻转，同步回写到 conc_for_fit 用于绘图
                         plot_conc = calibration_params.get("X_original", conc_for_fit)
 
-                        sample_results = calculate_sample_concentrations_quadratic(sample_results, calibration_params)
+                        sample_results = calculate_sample_concentrations(sample_results, calibration_params)
 
                         for result in spots_results:
                             result["Calibration_R2"] = float(calibration_params.get("r_squared", r_squared))
-                            iso_r2 = calibration_params.get("r_squared_isotonic")
-                            if iso_r2 is not None and float(iso_r2) >= 0:
-                                result["Calibration_R2_Isotonic"] = float(iso_r2)
                             result["Quantification_Method"] = calibration_params.get(
                                 "quantification_method", quantification_method
+                            )
+                            result["Requested_Quantification_Method"] = calibration_params.get(
+                                "requested_quantification_method", quantification_method
+                            )
+                            result["Calibration_Fallback_Reason"] = calibration_params.get(
+                                "calibration_fallback_reason", ""
+                            )
+                            result["Calibration_Quality"] = calibration_params.get(
+                                "calibration_quality", ""
                             )
                             result["Calibration_Y_Min"] = float(calibration_params.get("y_min", 0.0))
                             result["Calibration_Y_Max"] = float(calibration_params.get("y_max", 0.0))
@@ -2487,7 +2087,7 @@ def run(
                                 result["Concentration_In_Range"] = True
 
                         calibration_plot_path = save_dir / f"{p.stem}_calibration_curve.png"
-                        plot_calibration_curve_quadratic(
+                        plot_calibration_curve(
                             standard_results,
                             plot_conc,
                             calibration_params,
@@ -2496,15 +2096,18 @@ def run(
                             background_type=background_type,
                         )
 
-                        a, b, c = calibration_params["a"], calibration_params["b"], calibration_params["c"]
                         LOGGER.info(f"Calibration complete: R2 = {r_squared:.6f}")
-                        LOGGER.info(
-                            f"Calibration: {image_y_label} = {a:.6f}*conc^2 + {b:.6f}*conc + {c:.6f}"
-                        )
+                        a, b, c = calibration_params["a"], calibration_params["b"], calibration_params["c"]
+                        if calibration_params["quantification_method"] == "quadratic":
+                            equation = f"{a:.6f}*conc^2 + {b:.6f}*conc + {c:.6f}"
+                        else:
+                            equation = f"{b:.6f}*conc + {c:.6f}"
+                        LOGGER.info(f"Calibration: {image_y_label} = {equation}")
                         LOGGER.info(
                             f"Background: {background_type}, Y-axis: {image_y_label}, "
                             f"quantification={calibration_params.get('quantification_method')}, "
-                            f"isotonic={calibration_params.get('use_isotonic')}, "
+                            f"requested={calibration_params.get('requested_quantification_method')}, "
+                            f"fallback={calibration_params.get('calibration_fallback_reason') or 'none'}, "
                             f"order_reversed={calibration_params.get('order_reversed')}"
                         )
 
@@ -2829,13 +2432,9 @@ def parse_opt():
     parser.add_argument("--y-axis-type", type=str, default="sum_od",  # 修改：默认使用总光密度值
                         choices=["sum_gray", "mean_gray", "sum_od", "mean_od"],
                         help="type of y-axis for calibration curve")
-    # 新增数据变换参数
-    parser.add_argument("--transform-type", type=str, default="auto",
-                        choices=["none", "log", "sqrt", "reciprocal", "log_log", "power", "auto"],
-                        help="data transformation type to enhance linearity")
-    parser.add_argument("--quantification-method", type=str, default="isotonic",
-                        choices=["isotonic", "quadratic"],
-                        help="concentration back-calculation: isotonic (default) or quadratic (paper reproduction)")
+    parser.add_argument("--quantification-method", type=str, default="quadratic",
+                        choices=["quadratic", "linear"],
+                        help="concentration back-calculation: quadratic (default) or linear")
     # 新增：遮盖水平线外干扰斑点后二次推理（默认启用）
     parser.add_argument("--mask-interference", action="store_true", default=True,
                         help="mask spots outside the reference horizontal band and re-run inference (default: True)")

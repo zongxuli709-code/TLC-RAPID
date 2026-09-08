@@ -40,7 +40,9 @@ environment and reproduction procedure in the GitHub repository's
 
 **Standard concentrations** (`user_input/standard_concentrations.csv`): enter the amount for each standard spot from left to right; the `(default)` row applies to all images unless overridden by filename.
 
-The number of standards is **not fixed at five**. The default isotonic workflow requires at least **3 distinct, non-negative standards**. The optional quadratic paper-reproduction mode requires at least **4** and is rejected if the fitted parabola changes direction within the standard concentration range. TLC-RAPID takes the count of populated `standard_*` columns in this table as *N*: the leftmost *N* spots are treated as standards and all spots to their right as samples. The five columns in the template are only an example—add or remove `standard_*` columns and fill in the corresponding amounts.
+The number of standards is **not fixed at five**. The default quadratic workflow requires at least **4 distinct, non-negative standards**. The alternative linear regression requires at least **3**. If a quadratic fit changes direction within the standard range, TLC-RAPID uses linear regression to avoid ambiguous two-root inversion and records the requested method, actual method, and fallback reason in the result table. TLC-RAPID takes the count of populated `standard_*` columns in this table as *N*: the leftmost *N* spots are treated as standards and all spots to their right as samples. The five columns in the template are only an example—add or remove `standard_*` columns and fill in the corresponding amounts.
+
+The result table also reports `Calibration_Quality`. Fits with R2 below 0.75 are marked `poor_fit`; review the standard assignments, detected spots, response axis, and validated range before interpreting those concentrations.
 
 | image_filename | standard_1 | standard_2 | … | notes |
 |----------------|------------|------------|---|-------|
@@ -52,7 +54,7 @@ The number of standards is **not fixed at five**. The default isotonic workflow 
 | parameter | typical value | meaning |
 |-----------|---------------|---------|
 | imaging_mode | 366nm / visible / 254nm | For 366 nm fluorescence plates, use `366nm` (not `auto`) |
-| quantification_method | isotonic | Default monotonic workflow; `quadratic` is retained only to reproduce paper calculations |
+| quantification_method | quadratic | Default manuscript-aligned model; `linear` is the alternative |
 | confidence_threshold | 0.15 | Detection confidence |
 
 ## Manual spot marking

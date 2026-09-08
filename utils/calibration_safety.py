@@ -35,5 +35,5 @@ def require_unambiguous_quadratic(domain: QuadraticDomain) -> None:
         raise ValueError(
             "Quadratic calibration is non-monotonic within the standard concentration range "
             f"({domain.concentration_min:g}-{domain.concentration_max:g}; vertex={domain.vertex:g}). "
-            "Use isotonic quantification (the default) or restrict standards to one side of the vertex."
+            "Select linear regression or restrict the validated standards to one side of the vertex."
         )
