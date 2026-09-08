@@ -59,21 +59,19 @@ class ReleaseBlockerTests(unittest.TestCase):
                 quantification_method="quadratic",
             )
 
-    def test_quadratic_crossing_vertex_uses_recorded_linear_fallback(self) -> None:
+    def test_quadratic_crossing_vertex_is_rejected(self) -> None:
         from segment.analyze_engine import fit_calibration_model
 
         concentrations = [1.0, 3.0, 6.0, 12.0, 16.0]
         # Vertex at 9.33, inside the 1-16 standard range from the review example.
         responses = [-(x - 9.33) ** 2 + 100.0 for x in concentrations]
         standards = [{"Sum_OD": value} for value in responses]
-        params, _ = fit_calibration_model(
-            standards,
-            concentrations,
-            quantification_method="quadratic",
-        )
-        self.assertEqual(params["requested_quantification_method"], "quadratic")
-        self.assertEqual(params["quantification_method"], "linear")
-        self.assertIn("quadratic_vertex_in_standard_range", params["calibration_fallback_reason"])
+        with self.assertRaisesRegex(ValueError, "vertex .* lies inside the standard range"):
+            fit_calibration_model(
+                standards,
+                concentrations,
+                quantification_method="quadratic",
+            )
 
     def test_manuscript_quadratic_models_are_unambiguous_in_validated_ranges(self) -> None:
         from segment.analyze_engine import fit_calibration_model
@@ -92,7 +90,6 @@ class ReleaseBlockerTests(unittest.TestCase):
                     quantification_method="quadratic",
                 )
                 self.assertEqual(params["quantification_method"], "quadratic")
-                self.assertEqual(params["calibration_fallback_reason"], "")
                 self.assertAlmostEqual(r_squared, 1.0, places=10)
 
     def test_linear_is_available_for_cross_vertex_data(self) -> None:
@@ -116,6 +113,30 @@ class ReleaseBlockerTests(unittest.TestCase):
         self.assertEqual(samples[0]["Concentration_Method"], "linear")
         self.assertGreaterEqual(samples[0]["Calculated_Concentration"], 0.0)
         self.assertTrue(samples[0]["Out_of_Range"])
+
+    def test_quadratic_does_not_invent_an_out_of_range_solution(self) -> None:
+        import math
+
+        from segment.analyze_engine import (
+            calculate_sample_concentrations,
+            fit_calibration_model,
+        )
+
+        concentrations = [0.5, 1.0, 2.0, 4.0]
+        responses = [10.0 + 5.0 * x - 0.1 * x * x for x in concentrations]
+        params, _ = fit_calibration_model(
+            [{"Sum_OD": value} for value in responses],
+            concentrations,
+            quantification_method="quadratic",
+        )
+        sample = calculate_sample_concentrations(
+            [{"Sum_OD": 1000.0, "Spot_Index": 5}],
+            params,
+        )[0]
+        self.assertTrue(math.isnan(sample["Calculated_Amount_Per_Band"]))
+        self.assertEqual(sample["Concentration_Method"], "no_valid_solution")
+        self.assertTrue(sample["Out_of_Range"])
+        self.assertIn("no_valid_solution", sample["Range_Status"])
 
     def test_two_standards_are_rejected_before_analysis(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

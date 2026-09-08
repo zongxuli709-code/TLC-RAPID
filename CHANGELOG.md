@@ -5,8 +5,12 @@
 - Set quadratic regression as the default quantification method and linear
   regression as the only user-selectable alternative.
 - Removed isotonic regression and the obsolete response-transformation code.
-- Added a recorded linear fallback when a quadratic vertex lies inside the
-  standard range, avoiding ambiguous inverse roots.
+- Reject quadratic calibration when its vertex lies inside the standard range;
+  linear regression remains an explicit user-selected alternative.
+- Do not fabricate a concentration by interpolation or projection when a
+  quadratic response has no unique root inside the calibrated range.
+- Curated the public workflow example to one image that passes the default
+  quadratic safety checks and records standards as applied amount per band.
 - Added `Calibration_Quality`; fits with R2 below 0.75 are flagged `poor_fit`
   for review rather than being presented without a warning.
 - Added traceable Windows release metadata and source-code links.

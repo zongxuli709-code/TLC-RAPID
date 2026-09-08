@@ -8,7 +8,7 @@
 
 1. 双击 `TLC-RAPID.exe`，打开启动界面
 2. 点击 **Open images folder**，放入 TLC 图片（`.jpg` / `.png`）
-3. 点击 **Edit concentrations**，填写标准品浓度（从左到右）
+3. 点击 **Edit concentrations**，填写标准品上样量（从左到右，通常为 μg/band）
 4. 选择 **Imaging mode**（366 nm 荧光板选 `366nm`），点击 **Start Analysis**
 5. 每张图检测完成后可**手动补标**漏检斑点（见下文）
 6. 结束后在界面中打开结果目录（或查看 `runs/predict-seg/`）
@@ -21,20 +21,19 @@
 
 ### 随包示例
 
-正式用户包内已经预置五张匿名化示例图和对应的逐图标准浓度，解压后可直接运行。示例仅用于确认完整工作流程，不是性能验证数据集。源码包中的原始示例材料位于 [`example_data`](example_data/README.md)。
+正式用户包内预置一张匿名化示例图及其标准上样量，解压后可直接运行。该示例只用于确认完整工作流程，不是性能验证数据集。源码包中的示例材料位于 [`example_data`](example_data/README.md)。
 
-每张图的准确标准浓度记录在 `user_input/standard_concentrations.csv`；其中
-`example-3.jpg` 有意采用从左到右递减的标准浓度，用于验证方向处理。
+准确的标准上样量记录在 `user_input/standard_concentrations.csv`。
 
 正式用户包仅支持 64 位 Windows。解压后直接双击 `TLC-RAPID.exe`，无需安装 Python。源码环境和复现方法由开发者参阅 [GitHub 源码仓库中的 REPRODUCIBILITY.md](https://github.com/zongxuli709-code/TLC-RAPID/blob/v1.0/REPRODUCIBILITY.md)。
 
 ## 分析设置
 
-**标准品浓度**（`user_input/standard_concentrations.csv`）：按斑点从左至右填写各标准品浓度；`(default)` 行为全局默认，也可按图片文件名单独设置。
+**标准品上样量**（`user_input/standard_concentrations.csv`）：按斑点从左至右填写各标准品上样量，通常使用 μg/band；`(default)` 行为全局默认，也可按图片文件名单独设置。
 
-标准品数量**不固定为 5**。默认二次回归至少需要 **4 个互不重复的非负标准浓度**；备选线性回归至少需要 **3 个**。如果二次拟合在标准范围内跨越顶点，软件会自动改用线性回归，避免二次反算出现两个可能浓度；结果表会分别记录请求方法、实际方法和回退原因。软件以该表中有数值的 `standard_*` 列数为准：最左侧对应个数的斑点判为标准品，其右侧斑点判为待测样品。模板中的五列仅为示例，可按实际情况增删 `standard_*` 列。
+标准品数量**不固定为 5**。默认二次回归至少需要 **4 个互不重复的非负标准上样量**；备选线性回归至少需要 **3 个**。如果二次拟合在标准范围内跨越顶点，软件会把该图记为校准失败，不会自动切换方法。此时应缩小到经过验证的单调标准范围，或由用户明确选择线性回归。软件以该表中有数值的 `standard_*` 列数为准：最左侧对应个数的斑点判为标准品，其右侧斑点判为待测样品。模板中的五列仅为示例，可按实际情况增删 `standard_*` 列。
 
-结果表还会输出 `Calibration_Quality`。当 R2 低于 0.75 时标记为 `poor_fit`；解释浓度前应检查标准品对应关系、斑点识别、响应指标和验证范围。
+标准品输入应填写上样量（通常为 μg/band）。结果表的 `Calculated_Amount_Per_Band` 为同单位的反算上样量；`Calculated_Concentration` 仅为兼容旧版本保留的别名，不会自动换算点样体积、提取体积、稀释倍数或药材含量。结果表还会输出 `Calibration_Quality`。当 R2 低于 0.75 时标记为 `poor_fit`；解释上样量前应检查标准品对应关系、斑点识别、响应指标和验证范围。二次曲线顶点落在标准范围内时，程序会将该图标记为校准失败，不会静默切换方法；应将标准点限制在经过验证的单调范围内，或由用户明确选择线性回归。
 
 | image_filename | standard_1 | standard_2 | … | notes |
 |----------------|------------|------------|---|-------|
@@ -64,7 +63,7 @@
 
 ## 读取结果
 
-每次分析结果保存在 `runs/predict-seg/exp*/`（或最新一次运行目录）下。样品定量结果在 **`quantitative_analysis_all_images.xlsx`** 中；**`Calculated_Concentration`** 列即为各待测斑点的预测浓度，单位与 `standard_concentrations.csv` 中所填标准品浓度一致。新增的 **`Metadata`** 工作表会记录软件版本、源码提交、模型与配置哈希、依赖版本和分析参数，便于追踪与复现。若 **`Out_of_Range`** 为 `True`，表示该点响应或反算浓度超出标准曲线验证范围，所给数值仅供参考。
+每次分析结果保存在 `runs/predict-seg/exp*/`（或最新一次运行目录）下。样品定量结果在 **`quantitative_analysis_all_images.xlsx`** 中；**`Calculated_Amount_Per_Band`** 为各待测斑点的反算上样量，单位与标准品输入一致。**`Calculated_Concentration`** 仅为旧版本兼容别名。**`Metadata`** 工作表记录软件版本、源码提交、模型与配置哈希、依赖版本和分析参数。若 **`Out_of_Range`** 为 `True`，该结果不属于经过验证的定量范围。
 
 | 列名 | 含义 |
 |------|------|
@@ -72,7 +71,8 @@
 | `Spot_Index` | 斑点序号（从左至右） |
 | `Spot_Type` | `standard`：标准品；`sample`：待测样品 |
 | `Known_Concentration` | 标准品已知浓度 |
-| **`Calculated_Concentration`** | **待测样品预测浓度** |
+| **`Calculated_Amount_Per_Band`** | **待测样品反算上样量** |
+| `Calculated_Concentration` | 兼容旧版本的同值别名 |
 | `Out_of_Range` | 是否超出标准曲线验证范围 |
 | `Range_Status` | 超范围判定说明 |
 | `Calibration_Y_Axis` | 校准所用响应指标（IGI / peak_1d / IOD） |

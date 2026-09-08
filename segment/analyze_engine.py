@@ -498,6 +498,7 @@ def process_manual_rectangles(gray_im, color_im, manual_rects, start_spot_idx=0,
             "Spot_Type": "",
             "Known_Concentration": None,
             "Calculated_Concentration": None,
+            "Calculated_Amount_Per_Band": None,
             "Spot_Source": "manual",
             "Manual_Rect": f"{x1},{y1},{x2},{y2}",
         })
@@ -796,17 +797,13 @@ def fit_calibration_model(standard_results, standard_concentrations, y_axis_type
     coefs, r_squared = _fit_polynomial(concentrations, y_values, method)
     a, b, c = coefs
     quadratic_domain = inspect_quadratic_domain(a, b, float(concentrations.min()), float(concentrations.max()))
-    fallback_reason = ""
     if method == "quadratic" and quadratic_domain.vertex_in_range:
-        fallback_reason = (
-            "quadratic_vertex_in_standard_range: "
-            f"vertex={quadratic_domain.vertex:.6g}, range="
-            f"{float(concentrations.min()):.6g}-{float(concentrations.max()):.6g}"
+        raise ValueError(
+            "Quadratic calibration is not invertible unambiguously because its vertex "
+            f"({quadratic_domain.vertex:.6g}) lies inside the standard range "
+            f"({float(concentrations.min()):.6g}-{float(concentrations.max()):.6g}). "
+            "Restrict the standards to a validated monotonic range or explicitly select linear regression."
         )
-        LOGGER.warning(f"Unsafe quadratic inversion; using linear regression: {fallback_reason}")
-        method = "linear"
-        coefs, r_squared = _fit_polynomial(concentrations, y_values, method)
-        a, b, c = coefs
     calibration_quality = "acceptable" if r_squared >= CALIBRATION_R2_WARNING_THRESHOLD else "poor_fit"
     if calibration_quality == "poor_fit":
         LOGGER.warning(
@@ -816,9 +813,7 @@ def fit_calibration_model(standard_results, standard_concentrations, y_axis_type
 
     calibration_params = {
         "fit_type": method,
-        "requested_quantification_method": requested_method,
         "quantification_method": method,
-        "calibration_fallback_reason": fallback_reason,
         "coefs": coefs,
         "a": a,
         "b": b,
@@ -864,17 +859,20 @@ def assess_sample_quantification_range(y_value: float, conc: float, calibration_
     cmax = float(calibration_params.get("conc_max", 1.0))
     y_lo = float(calibration_params.get("y_min", np.min(ys) if ys.size else 0.0))
     y_hi = float(calibration_params.get("y_max", np.max(ys) if ys.size else 0.0))
-    conc = float(max(0.0, conc))
+    conc = float(conc)
+    valid_solution = np.isfinite(conc) and conc >= 0.0
 
     resp_below = ys.size > 0 and y_value < y_lo - _range_tolerance(y_lo)
     resp_above = ys.size > 0 and y_value > y_hi + _range_tolerance(y_hi)
-    conc_below = conc < cmin - _range_tolerance(cmin)
-    conc_above = conc > cmax + _range_tolerance(cmax)
+    conc_below = valid_solution and conc < cmin - _range_tolerance(cmin)
+    conc_above = valid_solution and conc > cmax + _range_tolerance(cmax)
 
     clipped_low = resp_below and abs(conc - cmin) <= _range_tolerance(cmin, rel=0.02)
     clipped_high = resp_above and abs(conc - cmax) <= _range_tolerance(cmax, rel=0.02)
 
     reasons: list[str] = []
+    if not valid_solution:
+        reasons.append("no_valid_solution")
     if resp_below:
         reasons.append("response_below_standards")
     if resp_above:
@@ -893,7 +891,7 @@ def assess_sample_quantification_range(y_value: float, conc: float, calibration_
         "Out_of_Range": not in_range,
         "Range_Status": "in_range" if in_range else ";".join(reasons),
         "Response_In_Range": not (resp_below or resp_above),
-        "Concentration_In_Range": not (conc_below or conc_above),
+        "Concentration_In_Range": valid_solution and not (conc_below or conc_above),
         "Calibration_Y_Min": y_lo,
         "Calibration_Y_Max": y_hi,
         "Calibration_Conc_Min": cmin,
@@ -901,98 +899,33 @@ def assess_sample_quantification_range(y_value: float, conc: float, calibration_
     }
 
 
-def _interp_concentration_from_standards(y_value: float, xs, ys) -> float:
-    """
-    稳健回退：用标准品响应值 -> 浓度 的邻近加权估计。
-    不依赖曲线单调；超出标准品响应范围时夹到端点浓度，避免直接给 0。
-    """
-    xs = np.asarray(xs, dtype=float)
-    ys = np.asarray(ys, dtype=float)
-    if xs.size == 0:
-        return 0.0
-    if xs.size == 1:
-        return float(max(0.0, xs[0]))
-
-    order = np.argsort(ys)
-    ys_s = ys[order]
-    xs_s = xs[order]
-
-    # 相同响应值合并，避免插值抖动
-    uniq_y, inv = np.unique(ys_s, return_inverse=True)
-    uniq_x = np.zeros_like(uniq_y)
-    for i in range(len(uniq_y)):
-        uniq_x[i] = float(np.mean(xs_s[inv == i]))
-
-    if y_value <= uniq_y[0]:
-        return float(max(0.0, uniq_x[0]))
-    if y_value >= uniq_y[-1]:
-        return float(max(0.0, uniq_x[-1]))
-
-    # 响应基本单调时用插值；否则用最近邻加权
-    mono_inc = np.all(np.diff(uniq_x) >= -1e-12)
-    mono_dec = np.all(np.diff(uniq_x) <= 1e-12)
-    if mono_inc or mono_dec:
-        return float(max(0.0, np.interp(y_value, uniq_y, uniq_x)))
-
-    dists = np.abs(ys - y_value)
-    k = min(3, len(ys))
-    idx = np.argpartition(dists, k - 1)[:k]
-    weights = 1.0 / (dists[idx] + 1e-12)
-    return float(max(0.0, np.average(xs[idx], weights=weights)))
-
-
-def _project_concentration_on_quadratic(y_value: float, a: float, b: float, c: float,
-                                         cmin: float, cmax: float) -> float:
-    """无实根时，在浓度区间上找使二次曲线最接近 y_value 的浓度。"""
-    hi = max(cmax * 3.0, cmin + 1e-9, 1e-9)
-    x_grid = np.linspace(0.0, hi, 800)
-    y_grid = a * x_grid ** 2 + b * x_grid + c
-    return float(max(0.0, x_grid[int(np.argmin(np.abs(y_grid - y_value)))]))
-
-
 def solve_concentration_from_quadratic(y_value: float, calibration_params: dict) -> float:
-    """
-    由二次曲线反解浓度。
-    判别式为负、无正根、或非单调导致反解异常时，回退到标准品邻近估计，避免样品浓度被硬写成 0。
-    """
+    """Return the sole non-negative quadratic root inside the calibrated range."""
     a = float(calibration_params["a"])
     b = float(calibration_params["b"])
     c = float(calibration_params["c"])
     cmin = float(calibration_params.get("conc_min", 0.0))
     cmax = float(calibration_params.get("conc_max", 1.0))
-    xs = calibration_params.get("X_original", [])
-    ys = calibration_params.get("y_original", [])
-    fallback = _interp_concentration_from_standards(y_value, xs, ys)
-
     require_unambiguous_quadratic(inspect_quadratic_domain(a, b, cmin, cmax))
 
     if abs(a) < 1e-12:
-        if abs(b) > 1e-12:
-            conc = float((y_value - c) / b)
-            if conc >= 0:
-                return conc
-        return fallback
+        if abs(b) <= 1e-12:
+            return float("nan")
+        conc = float((y_value - c) / b)
+        return conc if cmin <= conc <= cmax else float("nan")
 
     discriminant = b * b - 4 * a * (c - y_value)
     if discriminant < 0:
-        # 样品响应落在抛物线开口外：投影到曲线最近点，再与标准品回退取更合理者
-        projected = _project_concentration_on_quadratic(y_value, a, b, c, cmin, cmax)
-        if projected > 0:
-            return projected
-        return fallback
+        return float("nan")
 
     sqrt_d = float(np.sqrt(discriminant))
     roots = [(-b + sqrt_d) / (2 * a), (-b - sqrt_d) / (2 * a)]
-    valid = [float(r) for r in roots if np.isfinite(r) and r >= 0]
-    if not valid:
-        projected = _project_concentration_on_quadratic(y_value, a, b, c, cmin, cmax)
-        return projected if projected > 0 else fallback
-
-    # 非单调时两个正根都可能成立：选更接近“标准品邻近估计”的那个
-    target = fallback if fallback > 0 else (cmin + cmax) / 2.0
-    in_range = [r for r in valid if cmin * 0.3 <= r <= cmax * 3.0]
-    pool = in_range if in_range else valid
-    return max(0.0, min(pool, key=lambda r: abs(r - target)))
+    tolerance = _range_tolerance(max(abs(cmin), abs(cmax)))
+    valid = [
+        float(r) for r in roots
+        if np.isfinite(r) and r >= 0 and cmin - tolerance <= r <= cmax + tolerance
+    ]
+    return valid[0] if len(valid) == 1 else float("nan")
 
 
 def solve_concentration_from_linear(y_value: float, calibration_params: dict) -> float:
@@ -1006,7 +939,6 @@ def solve_concentration_from_linear(y_value: float, calibration_params: dict) ->
 
 def calculate_sample_concentrations(sample_results, calibration_params):
     """Back-calculate sample concentrations with the explicitly selected model."""
-    xs = np.asarray(calibration_params.get("X_original", []), dtype=float)
     method_mode = str(calibration_params.get("quantification_method", "quadratic")).lower()
 
     cmin = float(calibration_params.get("conc_min", 0.0))
@@ -1014,30 +946,22 @@ def calculate_sample_concentrations(sample_results, calibration_params):
 
     for result in sample_results:
         y_value = _extract_y_value(result, calibration_params["y_axis_type"])
-        interp = _interp_concentration_from_standards(
-            y_value,
-            calibration_params.get("X_original", []),
-            calibration_params.get("y_original", []),
-        )
         if method_mode == "quadratic":
-            quad = solve_concentration_from_quadratic(y_value, calibration_params)
-            conc = quad if quad > 0 else interp
-            method = "quadratic" if quad > 0 else "interp_fallback"
+            conc = solve_concentration_from_quadratic(y_value, calibration_params)
+            method = "quadratic" if np.isfinite(conc) else "no_valid_solution"
         elif method_mode == "linear":
-            linear = solve_concentration_from_linear(y_value, calibration_params)
-            conc = linear if linear >= 0 else interp
-            method = "linear" if linear >= 0 else "interp_fallback"
+            conc = solve_concentration_from_linear(y_value, calibration_params)
+            if not np.isfinite(conc) or conc < 0:
+                conc = float("nan")
+                method = "no_valid_solution"
+            else:
+                method = "linear"
         else:
             raise ValueError(f"Unsupported quantification method: {method_mode}")
-
-        if conc <= 0 and xs.size:
-            conc = interp if interp > 0 else float(max(cmin, 1e-12))
-            method = "interp_fallback"
-
-        conc = float(max(0.0, conc))
         range_info = assess_sample_quantification_range(y_value, conc, calibration_params)
 
         result["Calculated_Concentration"] = conc
+        result["Calculated_Amount_Per_Band"] = conc
         result["Concentration_Method"] = method
         result.update(range_info)
 
@@ -1596,6 +1520,7 @@ def process_spots_sorted(det, masks, gray_im, color_im, fixed_width, fixed_heigh
             "Spot_Type": "",
             "Known_Concentration": None,
             "Calculated_Concentration": None,
+            "Calculated_Amount_Per_Band": None,
             "Out_of_Range": False,
             "Range_Status": "",
             "Response_In_Range": True,
@@ -2067,12 +1992,6 @@ def run(
                             result["Quantification_Method"] = calibration_params.get(
                                 "quantification_method", quantification_method
                             )
-                            result["Requested_Quantification_Method"] = calibration_params.get(
-                                "requested_quantification_method", quantification_method
-                            )
-                            result["Calibration_Fallback_Reason"] = calibration_params.get(
-                                "calibration_fallback_reason", ""
-                            )
                             result["Calibration_Quality"] = calibration_params.get(
                                 "calibration_quality", ""
                             )
@@ -2106,8 +2025,6 @@ def run(
                         LOGGER.info(
                             f"Background: {background_type}, Y-axis: {image_y_label}, "
                             f"quantification={calibration_params.get('quantification_method')}, "
-                            f"requested={calibration_params.get('requested_quantification_method')}, "
-                            f"fallback={calibration_params.get('calibration_fallback_reason') or 'none'}, "
                             f"order_reversed={calibration_params.get('order_reversed')}"
                         )
 
@@ -2131,7 +2048,7 @@ def run(
                             flag = " [out of range]" if oOR else ""
                             status = result.get("Range_Status", "")
                             print(
-                                f"  Spot {result['Spot_Index']}: calc conc={result['Calculated_Concentration']:.10f}, "
+                                f"  Spot {result['Spot_Index']}: calculated amount={result['Calculated_Amount_Per_Band']:.10f}, "
                                 f"{image_y_label}={y_value:.4f}, method={result.get('Concentration_Method')}"
                                 f"{flag} ({status})"
                             )
@@ -2325,6 +2242,8 @@ def run(
                 df['Known_Concentration'] = df['Known_Concentration'].astype(float)
             if 'Calculated_Concentration' in df.columns:
                 df['Calculated_Concentration'] = df['Calculated_Concentration'].astype(float)
+            if 'Calculated_Amount_Per_Band' in df.columns:
+                df['Calculated_Amount_Per_Band'] = df['Calculated_Amount_Per_Band'].astype(float)
 
             df.to_excel(writer, sheet_name="Results", index=False, float_format="%.10f")
         status_df.to_excel(writer, sheet_name="Image_Status", index=False)
@@ -2335,7 +2254,11 @@ def run(
 
                 ws = writer.sheets["Results"]
                 bold = Font(bold=True)
-                highlight_cols = {"Known_Concentration", "Calculated_Concentration"}
+                highlight_cols = {
+                    "Known_Concentration",
+                    "Calculated_Concentration",
+                    "Calculated_Amount_Per_Band",
+                }
                 for col_idx, col_name in enumerate(df.columns, start=1):
                     if col_name not in highlight_cols:
                         continue
@@ -2357,7 +2280,7 @@ def run(
                 if spot_type == "standard" and pd.notna(row.get('Known_Concentration')):
                     conc_info = f", known conc={row['Known_Concentration']:.10f}"
                 elif spot_type == "sample" and pd.notna(row.get('Calculated_Concentration')):
-                    conc_info = f", calc conc={row['Calculated_Concentration']:.10f}"
+                    conc_info = f", calculated amount={row['Calculated_Concentration']:.10f}"
 
                 print(
                     f"  Spot {row['Spot_Index']}({spot_type}): mean gray={row['Mean_Gray']}, "

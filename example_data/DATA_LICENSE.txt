@@ -2,10 +2,10 @@ TLC-RAPID v1.0 example data
 
 Copyright (C) 2026 TLC-RAPID authors.
 
-The two example images and their accompanying CSV metadata in this directory
+The example image and its accompanying CSV metadata in this directory
 are distributed as part of TLC-RAPID under GNU AGPL-3.0-only. They may be used,
 copied, and modified under the terms in the repository's LICENSE file.
 
-The images contain no patient identifiers or personal metadata. They are
+The image contains no patient identifiers or personal metadata. It is
 provided only as workflow demonstrations and must not be interpreted as a
 clinical or analytical validation dataset.

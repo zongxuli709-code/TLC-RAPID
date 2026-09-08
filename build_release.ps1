@@ -110,7 +110,7 @@ Copy-Item -Path (Join-Path $DistRoot "*") -Destination $WindowsStage -Recurse -F
 $WindowsImages = Join-Path $WindowsStage "user_input\images"
 Assert-ChildPath $WindowsImages $WindowsStage
 New-Item -ItemType Directory -Path $WindowsImages -Force | Out-Null
-Copy-Item -Path (Join-Path $ProjectRoot "example_data\images\*") -Destination $WindowsImages
+Copy-Item -LiteralPath (Join-Path $ProjectRoot "example_data\images\example-5.jpg") -Destination $WindowsImages
 Copy-Item -LiteralPath (Join-Path $ProjectRoot "example_data\analysis_settings.csv") -Destination (Join-Path $WindowsStage "user_input\analysis_settings.csv") -Force
 Copy-Item -LiteralPath (Join-Path $ProjectRoot "example_data\standard_concentrations.csv") -Destination (Join-Path $WindowsStage "user_input\standard_concentrations.csv") -Force
 Copy-Item -LiteralPath (Join-Path $ProjectRoot "example_data\DATA_LICENSE.txt") -Destination (Join-Path $WindowsStage "EXAMPLE_DATA_LICENSE.txt")

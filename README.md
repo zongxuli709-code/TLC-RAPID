@@ -21,15 +21,14 @@ Chinese instructions: [README_zh.md](README_zh.md)
 
 ### Included example
 
-The Windows user package includes five anonymized example images with per-image
-standard concentrations, so a complete workflow can be tried immediately.
-They are workflow demonstrations, not a validation benchmark. The source
-materials and concentration mapping are documented in
+The Windows user package includes one anonymized example image with per-image
+standard applied amounts, so a complete workflow can be tried immediately.
+It is a workflow demonstration, not a validation benchmark. The source
+material and applied-amount mapping are documented in
 [`example_data`](example_data/README.md).
 
-The exact per-image standard concentrations are recorded in
-`user_input/standard_concentrations.csv`; `example-3.jpg` intentionally uses a
-descending left-to-right concentration series.
+The exact standard applied amounts are recorded in
+`user_input/standard_concentrations.csv`.
 
 The user package supports 64-bit Windows only. Extract it and double-click
 `TLC-RAPID.exe`; Python is not required. Developers can find the source
@@ -38,11 +37,11 @@ environment and reproduction procedure in the GitHub repository's
 
 ## Analysis settings
 
-**Standard concentrations** (`user_input/standard_concentrations.csv`): enter the amount for each standard spot from left to right; the `(default)` row applies to all images unless overridden by filename.
+**Standard applied amounts** (`user_input/standard_concentrations.csv`): enter the amount for each standard band from left to right, normally in μg/band. The `(default)` row applies to all images unless overridden by filename.
 
-The number of standards is **not fixed at five**. The default quadratic workflow requires at least **4 distinct, non-negative standards**. The alternative linear regression requires at least **3**. If a quadratic fit changes direction within the standard range, TLC-RAPID uses linear regression to avoid ambiguous two-root inversion and records the requested method, actual method, and fallback reason in the result table. TLC-RAPID takes the count of populated `standard_*` columns in this table as *N*: the leftmost *N* spots are treated as standards and all spots to their right as samples. The five columns in the template are only an example—add or remove `standard_*` columns and fill in the corresponding amounts.
+The number of standards is **not fixed at five**. The default quadratic workflow requires at least **4 distinct, non-negative standards**. The alternative linear regression requires at least **3**. If a quadratic fit changes direction within the standard range, TLC-RAPID records a calibration failure; it never switches methods silently. Restrict the standards to a validated monotonic range or explicitly select linear regression. TLC-RAPID takes the count of populated `standard_*` columns in this table as *N*: the leftmost *N* spots are treated as standards and all spots to their right as samples. The five columns in the template are only an example—add or remove `standard_*` columns and fill in the corresponding amounts.
 
-The result table also reports `Calibration_Quality`. Fits with R2 below 0.75 are marked `poor_fit`; review the standard assignments, detected spots, response axis, and validated range before interpreting those concentrations.
+The result table also reports `Calibration_Quality`. Fits with R2 below 0.75 are marked `poor_fit`; review the standard assignments, detected spots, response axis, and validated range before interpreting those amounts. Quadratic calibration is rejected if its vertex lies inside the standard range. The program never changes the requested method silently; restrict the standards to a validated monotonic range or explicitly select linear regression.
 
 | image_filename | standard_1 | standard_2 | … | notes |
 |----------------|------------|------------|---|-------|
@@ -72,7 +71,7 @@ In annotated output: **green** = standard, **red** = sample, **yellow** = manual
 
 ## Reading results
 
-Each run writes to `runs/predict-seg/exp*/` (or the latest run folder). Sample quantification is in **`quantitative_analysis_all_images.xlsx`**; the **`Calculated_Concentration`** column gives the predicted amount for each unknown spot, in the same units as the standards in `standard_concentrations.csv`. The **`Metadata`** sheet records the software version, source commit, model/configuration hashes, dependency versions, and analysis parameters needed to trace the result. If **`Out_of_Range`** is `True`, the response or back-calculated amount lies outside the validated calibration range and should be interpreted with caution.
+Each run writes to `runs/predict-seg/exp*/` (or the latest run folder). Sample quantification is in **`quantitative_analysis_all_images.xlsx`**. Enter standard applied amounts (normally μg/band); **`Calculated_Amount_Per_Band`** gives the corresponding result in the same unit. **`Calculated_Concentration`** is retained as a legacy alias and does not perform sample-preparation or application-volume conversion. The **`Metadata`** sheet records the software version, source commit, model/configuration hashes, dependency versions, and analysis parameters needed to trace the result. If **`Out_of_Range`** is `True`, the response or back-calculated amount lies outside the calibrated range and is not a validated quantitative result.
 
 | Column | Meaning |
 |--------|---------|
@@ -80,7 +79,8 @@ Each run writes to `runs/predict-seg/exp*/` (or the latest run folder). Sample q
 | `Spot_Index` | Spot index (left to right) |
 | `Spot_Type` | `standard`: reference; `sample`: unknown |
 | `Known_Concentration` | Known standard amount |
-| **`Calculated_Concentration`** | **Predicted sample amount** |
+| **`Calculated_Amount_Per_Band`** | **Back-calculated sample amount in the standard-input unit** |
+| `Calculated_Concentration` | Legacy alias of `Calculated_Amount_Per_Band` |
 | `Out_of_Range` | Outside validated calibration range |
 | `Range_Status` | Out-of-range classification |
 | `Calibration_Y_Axis` | Calibration response metric (IGI / peak_1d / IOD) |

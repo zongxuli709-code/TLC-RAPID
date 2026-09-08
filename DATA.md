@@ -4,10 +4,10 @@ TLC-RAPID does not include private experimental images in the source repository 
 
 ## Bundled workflow example
 
-Five anonymized demonstration images are distributed in `example_data/` with
-their per-image standard concentrations and an explicit data license. The
-release builder copies them into `user_input/` so a new user can run the
-workflow immediately. They are not part of the training, validation, or
+One anonymized demonstration image is distributed in `example_data/` with
+its per-image standard applied amounts and an explicit data license. The
+release builder copies it into `user_input/` so a new user can run the
+workflow immediately. It is not part of the training, validation, or
 independent test sets and must not be used as a performance benchmark. See
 `example_data/README.md` and `example_data/DATA_LICENSE.txt`.
 
@@ -35,6 +35,11 @@ Thresholds and model choices must be selected using the training and validation 
 ## Public artifacts
 
 No public archive or DOI is currently available for the development and test
-datasets. The release provides only the five non-identifying workflow examples,
-their concentration mapping, aggregate independent-test ground truth, and the
+datasets. The release provides only one non-identifying workflow example,
+its applied-amount mapping, aggregate independent-test ground truth, and the
 evaluation commands in `REPRODUCIBILITY.md`.
+
+Four earlier workflow images that do not pass the default quadratic
+invertibility check remain in the source tree for diagnosis. They have no
+active release concentration mapping and are not copied into the Windows user
+package.

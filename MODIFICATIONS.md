@@ -25,7 +25,7 @@ The authors modified and extended the upstream work to:
 - load a custom TLC spot instance-segmentation checkpoint;
 - support visible-light, 254 nm, and 366 nm TLC image response extraction;
 - add plate-specific standard assignment and quadratic/linear calibration,
-  range flags, and concentration back-calculation;
+  range flags, and applied-amount back-calculation;
 - add manual add/delete review of detected spots;
 - generate annotated images, CSV files, plots, and multi-sheet Excel reports;
 - add a Windows launcher, frozen executable configuration, input validation,
