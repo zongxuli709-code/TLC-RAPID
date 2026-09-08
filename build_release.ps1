@@ -106,6 +106,16 @@ if ($LASTEXITCODE -ne 0) { throw "git archive failed." }
 Expand-Archive -LiteralPath $GitArchive -DestinationPath $SourceStage
 Remove-Item -LiteralPath $GitArchive -Force
 
+# Keep diagnostic calibration-failure images in repository history, but do not
+# distribute them as public examples in either release package.
+foreach ($diagnosticImage in 1..4) {
+    $diagnosticPath = Join-Path $SourceStage "example_data\images\example-$diagnosticImage.jpg"
+    Assert-ChildPath $diagnosticPath $SourceStage
+    if (Test-Path -LiteralPath $diagnosticPath) {
+        Remove-Item -LiteralPath $diagnosticPath -Force
+    }
+}
+
 Copy-Item -Path (Join-Path $DistRoot "*") -Destination $WindowsStage -Recurse -Force
 $WindowsImages = Join-Path $WindowsStage "user_input\images"
 Assert-ChildPath $WindowsImages $WindowsStage
