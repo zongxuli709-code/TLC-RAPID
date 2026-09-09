@@ -21,10 +21,11 @@ Chinese instructions: [README_zh.md](README_zh.md)
 
 ### Included example
 
-The Windows user package includes one anonymized example image with per-image
+The Windows user package includes five worked example images with image-specific
 standard applied amounts, so a complete workflow can be tried immediately.
-It is a workflow demonstration, not a validation benchmark. The source
-material and applied-amount mapping are documented in
+Release verification produced a numeric result for every detected sample band
+across the five image sets. They are workflow demonstrations, not validation
+benchmarks. The source material and applied-amount mapping are documented in
 [`example_data`](example_data/README.md).
 
 The exact standard applied amounts are recorded in

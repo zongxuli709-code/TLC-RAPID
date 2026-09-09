@@ -21,6 +21,14 @@ identify how every numeric estimate was obtained.
 
 ## Try the example
 
+The release contains all five worked images (`example-1.jpg` through
+`example-5.jpg`) and their image-specific standard amounts. Release
+verification produced a numeric result for every detected sample band in the
+five image sets. The exported result table identifies whether each value used a
+direct quadratic root, a branch-selected quadratic root, or a labelled
+fallback estimate; out-of-range estimates are not validated quantitative
+results.
+
 The Windows user package places these files in `user_input`, ready to run. For
 source use, copy the JPG file to `user_input/images` and replace the two
 CSV templates in `user_input` with the CSV files in this directory.

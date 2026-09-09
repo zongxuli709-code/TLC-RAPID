@@ -1,7 +1,9 @@
 # TLC-RAPID Windows user package
 
-The included example is ready to run. Results are written to
-`runs/predict-seg`.
+The five included worked example images are ready to run. Results are written
+to `runs/predict-seg`. Every detected sample band in the five release examples
+produced a numeric result during release verification; the exported table
+identifies the applied calculation method and any out-of-range flag.
 
 This package supports 64-bit Windows only. Extract the entire ZIP, then
 double-click `TLC-RAPID.exe`. No Python installation or environment setup is
