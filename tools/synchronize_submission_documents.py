@@ -1,5 +1,6 @@
 """Synchronize the manuscript and supplement with TLC-RAPID v1.0 behavior."""
 
+import subprocess
 from pathlib import Path
 
 from docx import Document
@@ -7,9 +8,19 @@ from docx import Document
 
 ROOT = Path(__file__).resolve().parents[1]
 JCA = ROOT / "release" / "JCA-20260908"
-COMMIT = "ac37f029676a949164750171423ef25d3bc4d5d1"
 RELEASE_URL = "https://github.com/zongxuli709-code/TLC-RAPID/releases/tag/v1.0"
 WEIGHTS_URL = "https://github.com/zongxuli709-code/TLC-RAPID/releases/download/v1.0/best.pt"
+
+
+def current_commit() -> str:
+    completed = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return completed.stdout.strip()
 
 
 def replace_paragraph_starting_with(document: Document, prefix: str, replacement: str) -> None:
@@ -20,6 +31,7 @@ def replace_paragraph_starting_with(document: Document, prefix: str, replacement
 
 
 def main() -> None:
+    commit = current_commit()
     manuscript_path = JCA / "Manuscript_JCA.docx"
     manuscript = Document(manuscript_path)
     replace_paragraph_starting_with(
@@ -50,7 +62,7 @@ def main() -> None:
     replace_paragraph_starting_with(
         manuscript,
         "The source code and trained model weights for TLC-RAPID V1.0",
-        f"The source code and trained model weights for TLC-RAPID V1.0 are available in the immutable GitHub V1.0 release ({RELEASE_URL}), which corresponds to commit {COMMIT}. The release archive contains five worked TLC example images and their image-specific reference-standard values; release verification produced numerical results for every detected sample band in all five image sets. The source code is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0). The data supporting the findings of this study are available within the article and its Supplementary Information. Additional data are available from the corresponding author upon reasonable request. Supplementary Software S1 contains the standalone application, while the source code and model weights are distributed through the same GitHub V1.0 release.",
+        f"The source code and trained model weights for TLC-RAPID V1.0 are available in the immutable GitHub V1.0 release ({RELEASE_URL}), which corresponds to commit {commit}. The release archive contains five worked TLC example images and their image-specific reference-standard values; release verification produced numerical results for every detected sample band in all five image sets. The source code is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0). The data supporting the findings of this study are available within the article and its Supplementary Information. Additional data are available from the corresponding author upon reasonable request. Supplementary Software S1 contains the standalone application, while the source code and model weights are distributed through the same GitHub V1.0 release.",
     )
     manuscript_output = JCA / "Manuscript_JCA_v1.0_final.docx"
     manuscript.save(manuscript_output)
@@ -60,7 +72,7 @@ def main() -> None:
     replace_paragraph_starting_with(
         supplement,
         "TLC-RAPID (Recognition-based Automated Planar Image Densitometry) V1.0",
-        f"TLC-RAPID (Recognition-based Automated Planar Image Densitometry) V1.0 was developed in Python 3.12.4 and integrates a YOLOv5-based target-band segmentation model with OpenCV-based image processing and quantitative feature extraction. The standalone user package supports 64-bit Windows 10 and Windows 11 and does not require a separate Python installation. Supplementary Software S1 is this Windows user package and includes the executable, trained model weight, dataset and class configuration, input templates, dependency information, and user guide. The immutable GitHub V1.0 release ({RELEASE_URL}) corresponds to commit {COMMIT}. The package includes five worked TLC example images (example-1.jpg to example-5.jpg) and their per-image reference-standard values. Release verification produced a numerical result for every detected sample band across all five example image sets; the exported table identifies direct quadratic results, branch-selected quadratic results, and any fallback estimates. These examples demonstrate software operation and do not replace the formal validation datasets.",
+        f"TLC-RAPID (Recognition-based Automated Planar Image Densitometry) V1.0 was developed in Python 3.12.4 and integrates a YOLOv5-based target-band segmentation model with OpenCV-based image processing and quantitative feature extraction. The standalone user package supports 64-bit Windows 10 and Windows 11 and does not require a separate Python installation. Supplementary Software S1 is this Windows user package and includes the executable, trained model weight, dataset and class configuration, input templates, dependency information, and user guide. The immutable GitHub V1.0 release ({RELEASE_URL}) corresponds to commit {commit}. The package includes five worked TLC example images (example-1.jpg to example-5.jpg) and their per-image reference-standard values. Release verification produced a numerical result for every detected sample band across all five example image sets; the exported table identifies direct quadratic results, branch-selected quadratic results, and any fallback estimates. These examples demonstrate software operation and do not replace the formal validation datasets.",
     )
     replace_paragraph_starting_with(
         supplement,
@@ -90,7 +102,7 @@ def main() -> None:
     replace_paragraph_starting_with(
         supplement,
         "The package includes the standalone executable program, final trained YOLO model-weight file",
-        f"The package includes the standalone executable program, final trained YOLO model-weight file (best.pt), dataset and class-configuration file (boCenColor.yaml), input templates, dependency information, five worked example images, and a README.md user guide. Users place TLC images in the designated input directory, enter the reference-standard concentrations in the supplied CSV template, and launch the executable program. TLC-RAPID automatically exports annotated TLC images, fitted calibration curves, and quantitative result tables. The source code corresponding to this package is publicly available in the immutable TLC-RAPID V1.0 GitHub release ({RELEASE_URL}; commit {COMMIT}) under AGPL-3.0.",
+        f"The package includes the standalone executable program, final trained YOLO model-weight file (best.pt), dataset and class-configuration file (boCenColor.yaml), input templates, dependency information, five worked example images, and a README.md user guide. Users place TLC images in the designated input directory, enter the reference-standard concentrations in the supplied CSV template, and launch the executable program. TLC-RAPID automatically exports annotated TLC images, fitted calibration curves, and quantitative result tables. The source code corresponding to this package is publicly available in the immutable TLC-RAPID V1.0 GitHub release ({RELEASE_URL}; commit {commit}) under AGPL-3.0.",
     )
     supplement_output = JCA / "Supplementary material_v1.0_final.docx"
     supplement.save(supplement_output)
