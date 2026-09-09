@@ -43,7 +43,7 @@ from scipy import stats
 import torch
 
 from app_metadata import build_provenance
-from utils.calibration_safety import inspect_quadratic_domain, require_unambiguous_quadratic
+from utils.calibration_safety import inspect_quadratic_domain
 
 FILE = Path(__file__).resolve()
 CALIBRATION_R2_WARNING_THRESHOLD = 0.75
@@ -754,7 +754,13 @@ def _fit_polynomial(concentrations: np.ndarray, responses: np.ndarray, method: s
 def fit_calibration_model(standard_results, standard_concentrations, y_axis_type="sum_od",
                           y_label: str | None = None,
                           quantification_method: str = "quadratic"):
-    """Fit the selected calibration model without relabeling experimental inputs."""
+    """Fit the requested calibration curve and prepare an explicit fallback.
+
+    A quadratic fit is retained even when its vertex lies in the standard
+    range. Ambiguous inverse solutions are resolved separately for each sample
+    from the same-plate standards; linear regression is used only when that
+    sample has no objectively selectable quadratic root.
+    """
     if len(standard_results) != len(standard_concentrations):
         raise ValueError("Standard count does not match concentration list length")
     requested_method = str(quantification_method or "quadratic").strip().lower()
@@ -794,16 +800,25 @@ def fit_calibration_model(standard_results, standard_concentrations, y_axis_type
         print(f"Standard monotonicity: Spearman(conc, response)={spearman_fwd:.3f}")
 
     method = requested_method
+    method_selection = method
     coefs, r_squared = _fit_polynomial(concentrations, y_values, method)
     a, b, c = coefs
     quadratic_domain = inspect_quadratic_domain(a, b, float(concentrations.min()), float(concentrations.max()))
     if method == "quadratic" and quadratic_domain.vertex_in_range:
-        raise ValueError(
-            "Quadratic calibration is not invertible unambiguously because its vertex "
-            f"({quadratic_domain.vertex:.6g}) lies inside the standard range "
-            f"({float(concentrations.min()):.6g}-{float(concentrations.max()):.6g}). "
-            "Restrict the standards to a validated monotonic range or explicitly select linear regression."
+        LOGGER.warning(
+            f"Quadratic vertex {quadratic_domain.vertex:.6g} lies inside the standard range "
+            f"{float(concentrations.min()):.6g}-{float(concentrations.max()):.6g}; "
+            "sample roots will be selected using the same-plate standards."
         )
+    linear_fallback_coefs = None
+    linear_fallback_r2 = None
+    if method == "quadratic":
+        try:
+            linear_fallback_coefs, linear_fallback_r2 = _fit_polynomial(
+                concentrations, y_values, "linear"
+            )
+        except ValueError:
+            LOGGER.warning("Linear fallback is unavailable because its fitted slope is zero")
     calibration_quality = "acceptable" if r_squared >= CALIBRATION_R2_WARNING_THRESHOLD else "poor_fit"
     if calibration_quality == "poor_fit":
         LOGGER.warning(
@@ -814,6 +829,8 @@ def fit_calibration_model(standard_results, standard_concentrations, y_axis_type
     calibration_params = {
         "fit_type": method,
         "quantification_method": method,
+        "method_selection": method_selection,
+        "requested_method": requested_method,
         "coefs": coefs,
         "a": a,
         "b": b,
@@ -834,6 +851,8 @@ def fit_calibration_model(standard_results, standard_concentrations, y_axis_type
         "order_reversed": order_reversed,
         "quadratic_vertex": quadratic_domain.vertex,
         "quadratic_vertex_in_range": quadratic_domain.vertex_in_range,
+        "linear_fallback_coefs": linear_fallback_coefs,
+        "linear_fallback_r2": linear_fallback_r2,
     }
     return calibration_params, float(r_squared)
 
@@ -899,33 +918,86 @@ def assess_sample_quantification_range(y_value: float, conc: float, calibration_
     }
 
 
-def solve_concentration_from_quadratic(y_value: float, calibration_params: dict) -> float:
-    """Return the sole non-negative quadratic root inside the calibrated range."""
+def _reference_guided_estimate(y_value: float, calibration_params: dict) -> tuple[float, str]:
+    """Estimate amount from same-plate standards without assuming global monotonicity."""
+    xs = np.asarray(calibration_params.get("X_original", []), dtype=float)
+    ys = np.asarray(calibration_params.get("y_original", []), dtype=float)
+    valid = np.isfinite(xs) & np.isfinite(ys) & (xs >= 0)
+    xs, ys = xs[valid], ys[valid]
+    if xs.size == 0:
+        return 0.0, "zero_default_no_valid_standards"
+
+    order = np.argsort(ys)
+    ys_sorted, xs_sorted = ys[order], xs[order]
+    unique_y, inverse = np.unique(ys_sorted, return_inverse=True)
+    unique_x = np.array([np.mean(xs_sorted[inverse == i]) for i in range(unique_y.size)])
+    if unique_y.size >= 2:
+        estimate = float(np.interp(y_value, unique_y, unique_x))
+        return max(0.0, estimate), "same_plate_response_interpolation"
+
+    return max(0.0, float(np.mean(xs))), "same_plate_standard_mean"
+
+
+def select_quadratic_root(y_value: float, calibration_params: dict) -> dict:
+    """Select a quadratic inverse using the closest same-plate local estimate."""
     a = float(calibration_params["a"])
     b = float(calibration_params["b"])
     c = float(calibration_params["c"])
     cmin = float(calibration_params.get("conc_min", 0.0))
     cmax = float(calibration_params.get("conc_max", 1.0))
-    require_unambiguous_quadratic(inspect_quadratic_domain(a, b, cmin, cmax))
+    local_estimate, estimate_method = _reference_guided_estimate(y_value, calibration_params)
+    details = {
+        "roots": [], "in_range_roots": [], "local_estimate": local_estimate,
+        "local_estimate_method": estimate_method, "selected": None, "reason": "",
+    }
 
     if abs(a) < 1e-12:
         if abs(b) <= 1e-12:
-            return float("nan")
+            details["reason"] = "degenerate_quadratic"
+            return details
         conc = float((y_value - c) / b)
-        return conc if cmin <= conc <= cmax else float("nan")
+        details["roots"] = [conc]
+        if np.isfinite(conc) and conc >= 0 and cmin <= conc <= cmax:
+            details["in_range_roots"] = [conc]
+            details["selected"] = conc
+            details["reason"] = "single_linear_equivalent_root"
+        else:
+            details["reason"] = "linear_equivalent_root_outside_working_range"
+        return details
 
     discriminant = b * b - 4 * a * (c - y_value)
     if discriminant < 0:
-        return float("nan")
+        details["reason"] = "no_real_quadratic_root"
+        return details
 
     sqrt_d = float(np.sqrt(discriminant))
-    roots = [(-b + sqrt_d) / (2 * a), (-b - sqrt_d) / (2 * a)]
+    roots = [float((-b + sqrt_d) / (2 * a)), float((-b - sqrt_d) / (2 * a))]
+    details["roots"] = roots
     tolerance = _range_tolerance(max(abs(cmin), abs(cmax)))
     valid = [
         float(r) for r in roots
         if np.isfinite(r) and r >= 0 and cmin - tolerance <= r <= cmax + tolerance
     ]
-    return valid[0] if len(valid) == 1 else float("nan")
+    details["in_range_roots"] = valid
+    if len(valid) == 1:
+        details["selected"] = valid[0]
+        details["reason"] = "single_root_in_working_range"
+    elif len(valid) == 2:
+        distances = [abs(root - local_estimate) for root in valid]
+        if abs(distances[0] - distances[1]) <= _range_tolerance(local_estimate):
+            details["reason"] = "equidistant_roots_unresolved"
+        else:
+            details["selected"] = valid[int(np.argmin(distances))]
+            details["reason"] = "closest_to_same_plate_standard_estimate"
+    else:
+        details["reason"] = "no_root_in_working_range"
+    return details
+
+
+def solve_concentration_from_quadratic(y_value: float, calibration_params: dict) -> float:
+    """Compatibility wrapper returning the selected quadratic root or NaN."""
+    selected = select_quadratic_root(y_value, calibration_params)["selected"]
+    return float(selected) if selected is not None else float("nan")
 
 
 def solve_concentration_from_linear(y_value: float, calibration_params: dict) -> float:
@@ -938,7 +1010,7 @@ def solve_concentration_from_linear(y_value: float, calibration_params: dict) ->
 
 
 def calculate_sample_concentrations(sample_results, calibration_params):
-    """Back-calculate sample concentrations with the explicitly selected model."""
+    """Back-calculate samples by quadratic root, linear fit, then interpolation."""
     method_mode = str(calibration_params.get("quantification_method", "quadratic")).lower()
 
     cmin = float(calibration_params.get("conc_min", 0.0))
@@ -946,14 +1018,33 @@ def calculate_sample_concentrations(sample_results, calibration_params):
 
     for result in sample_results:
         y_value = _extract_y_value(result, calibration_params["y_axis_type"])
+        root_details = None
+        fallback_reason = ""
         if method_mode == "quadratic":
-            conc = solve_concentration_from_quadratic(y_value, calibration_params)
-            method = "quadratic" if np.isfinite(conc) else "no_valid_solution"
+            root_details = select_quadratic_root(y_value, calibration_params)
+            selected = root_details["selected"]
+            if selected is not None:
+                conc = float(selected)
+                method = "quadratic_branch_selected" if len(root_details["in_range_roots"]) == 2 else "quadratic"
+            else:
+                fallback_reason = root_details["reason"]
+                fallback_coefs = calibration_params.get("linear_fallback_coefs")
+                conc = float("nan")
+                if fallback_coefs is not None:
+                    slope, intercept = float(fallback_coefs[1]), float(fallback_coefs[2])
+                    if abs(slope) > 1e-12:
+                        candidate = float((y_value - intercept) / slope)
+                        if np.isfinite(candidate) and candidate >= 0:
+                            conc, method = candidate, "linear_fallback"
+                if not np.isfinite(conc):
+                    conc, interpolation_reason = _reference_guided_estimate(y_value, calibration_params)
+                    method = "interpolation_fallback"
+                    fallback_reason = f"{fallback_reason};{interpolation_reason}".strip(";")
         elif method_mode == "linear":
             conc = solve_concentration_from_linear(y_value, calibration_params)
             if not np.isfinite(conc) or conc < 0:
-                conc = float("nan")
-                method = "no_valid_solution"
+                conc, fallback_reason = _reference_guided_estimate(y_value, calibration_params)
+                method = "interpolation_fallback"
             else:
                 method = "linear"
         else:
@@ -963,7 +1054,17 @@ def calculate_sample_concentrations(sample_results, calibration_params):
         result["Calculated_Concentration"] = conc
         result["Calculated_Amount_Per_Band"] = conc
         result["Concentration_Method"] = method
+        result["Applied_Method"] = method
+        result["Fallback_Reason"] = fallback_reason
+        if root_details is not None:
+            roots = root_details["roots"]
+            result["Quadratic_Root_1"] = roots[0] if len(roots) > 0 else None
+            result["Quadratic_Root_2"] = roots[1] if len(roots) > 1 else None
+            result["Local_Standard_Estimate"] = root_details["local_estimate"]
+            result["Selected_Root"] = root_details["selected"]
+            result["Root_Selection_Reason"] = root_details["reason"]
         result.update(range_info)
+        result["Quantification_Status"] = "out_of_range_estimate" if range_info["Out_of_Range"] else method
 
         if range_info["Out_of_Range"]:
             LOGGER.warning(
@@ -1992,6 +2093,12 @@ def run(
                             result["Quantification_Method"] = calibration_params.get(
                                 "quantification_method", quantification_method
                             )
+                            result["Method_Selection"] = calibration_params.get(
+                                "method_selection", quantification_method
+                            )
+                            result["Requested_Method"] = calibration_params.get(
+                                "requested_method", quantification_method
+                            )
                             result["Calibration_Quality"] = calibration_params.get(
                                 "calibration_quality", ""
                             )
@@ -2055,7 +2162,8 @@ def run(
 
                         image_status["Quantification_Status"] = "success"
                         for result in spots_results:
-                            result["Quantification_Status"] = "success"
+                            if result.get("Spot_Type") == "standard":
+                                result["Quantification_Status"] = "standard_reference"
 
                     except Exception as e:
                         error_message = f"{type(e).__name__}: {e}"

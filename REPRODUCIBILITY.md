@@ -39,7 +39,7 @@ E507240E8C7BB8E8C3C57ABB20ADEE6FEBA78670F2EDF6E06BCF1AE12A4440A5
 4. Run `python run_analysis.py --run` for a non-interactive run or `python run_analysis.py` for the launcher.
 5. Inspect `quantitative_analysis_all_images.xlsx`, including `Metadata` and `Image_Status`.
 
-The v1.0 default requests quadratic regression, matching the manuscript model, and requires at least four distinct non-negative standard amounts. Linear regression is the explicit alternative and requires at least three standards. When a fitted quadratic vertex lies inside the standard range, that image is recorded as a calibration failure. TLC-RAPID never silently reverses standard labels, changes the requested model, or invents an inverse result by interpolation or projection.
+The v1.0 default requests quadratic regression and requires at least four distinct non-negative standard amounts. Linear regression is the explicit alternative and requires at least three standards. For quadratic analysis, each sample is inverted independently: non-real, negative, and out-of-range roots are rejected; a sole remaining root is used; and two remaining roots are resolved by proximity to a local response-based estimate from the same-plate standards. When no quadratic root can be selected, the result records a linear fallback and its reason. If linear inversion is unavailable, a same-plate response interpolation is returned and explicitly identified. TLC-RAPID never silently reverses standard labels, and all fallback and range states remain visible in the exported fields.
 
 The image-analysis output ends at applied amount per band. Reproducing the
 manuscript's precision, accuracy, stability, herbal-content, MRE, and paired

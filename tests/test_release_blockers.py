@@ -59,19 +59,31 @@ class ReleaseBlockerTests(unittest.TestCase):
                 quantification_method="quadratic",
             )
 
-    def test_quadratic_crossing_vertex_is_rejected(self) -> None:
-        from segment.analyze_engine import fit_calibration_model
+    def test_quadratic_crossing_vertex_is_retained_and_root_is_selected(self) -> None:
+        from segment.analyze_engine import calculate_sample_concentrations, fit_calibration_model
 
         concentrations = [1.0, 3.0, 6.0, 12.0, 16.0]
         # Vertex at 9.33, inside the 1-16 standard range from the review example.
         responses = [-(x - 9.33) ** 2 + 100.0 for x in concentrations]
         standards = [{"Sum_OD": value} for value in responses]
-        with self.assertRaisesRegex(ValueError, "vertex .* lies inside the standard range"):
-            fit_calibration_model(
-                standards,
-                concentrations,
-                quantification_method="quadratic",
-            )
+        params, _ = fit_calibration_model(
+            standards,
+            concentrations,
+            quantification_method="quadratic",
+        )
+        self.assertEqual(params["requested_method"], "quadratic")
+        self.assertEqual(params["quantification_method"], "quadratic")
+        self.assertEqual(params["method_selection"], "quadratic")
+        self.assertIsNotNone(params["linear_fallback_coefs"])
+        sample = calculate_sample_concentrations(
+            [{"Sum_OD": 95.0, "Spot_Index": 6}], params
+        )[0]
+        self.assertEqual(sample["Concentration_Method"], "quadratic_branch_selected")
+        self.assertIsNotNone(sample["Selected_Root"])
+        self.assertEqual(
+            sample["Root_Selection_Reason"],
+            "closest_to_same_plate_standard_estimate",
+        )
 
     def test_manuscript_quadratic_models_are_unambiguous_in_validated_ranges(self) -> None:
         from segment.analyze_engine import fit_calibration_model
@@ -114,9 +126,7 @@ class ReleaseBlockerTests(unittest.TestCase):
         self.assertGreaterEqual(samples[0]["Calculated_Concentration"], 0.0)
         self.assertTrue(samples[0]["Out_of_Range"])
 
-    def test_quadratic_does_not_invent_an_out_of_range_solution(self) -> None:
-        import math
-
+    def test_quadratic_failure_returns_disclosed_numeric_fallback(self) -> None:
         from segment.analyze_engine import (
             calculate_sample_concentrations,
             fit_calibration_model,
@@ -133,10 +143,21 @@ class ReleaseBlockerTests(unittest.TestCase):
             [{"Sum_OD": 1000.0, "Spot_Index": 5}],
             params,
         )[0]
-        self.assertTrue(math.isnan(sample["Calculated_Amount_Per_Band"]))
-        self.assertEqual(sample["Concentration_Method"], "no_valid_solution")
+        self.assertGreaterEqual(sample["Calculated_Amount_Per_Band"], 0.0)
+        self.assertIn(sample["Concentration_Method"], {"linear_fallback", "interpolation_fallback"})
+        self.assertTrue(sample["Fallback_Reason"])
         self.assertTrue(sample["Out_of_Range"])
-        self.assertIn("no_valid_solution", sample["Range_Status"])
+
+    def test_all_five_release_examples_are_present_and_configured(self) -> None:
+        project_root = Path(__file__).resolve().parents[1]
+        images = project_root / "example_data" / "images"
+        expected = {f"example-{index}.jpg" for index in range(1, 6)}
+        self.assertEqual({path.name for path in images.glob("example-*.jpg")}, expected)
+        with (project_root / "example_data" / "standard_concentrations.csv").open(
+            newline="", encoding="utf-8-sig"
+        ) as handle:
+            configured = {row["image_filename"] for row in csv.DictReader(handle)}
+        self.assertTrue(expected.issubset(configured))
 
     def test_two_standards_are_rejected_before_analysis(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

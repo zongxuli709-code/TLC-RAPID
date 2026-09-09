@@ -106,21 +106,11 @@ if ($LASTEXITCODE -ne 0) { throw "git archive failed." }
 Expand-Archive -LiteralPath $GitArchive -DestinationPath $SourceStage
 Remove-Item -LiteralPath $GitArchive -Force
 
-# Keep diagnostic calibration-failure images in repository history, but do not
-# distribute them as public examples in either release package.
-foreach ($diagnosticImage in 1..4) {
-    $diagnosticPath = Join-Path $SourceStage "example_data\images\example-$diagnosticImage.jpg"
-    Assert-ChildPath $diagnosticPath $SourceStage
-    if (Test-Path -LiteralPath $diagnosticPath) {
-        Remove-Item -LiteralPath $diagnosticPath -Force
-    }
-}
-
 Copy-Item -Path (Join-Path $DistRoot "*") -Destination $WindowsStage -Recurse -Force
 $WindowsImages = Join-Path $WindowsStage "user_input\images"
 Assert-ChildPath $WindowsImages $WindowsStage
 New-Item -ItemType Directory -Path $WindowsImages -Force | Out-Null
-Copy-Item -LiteralPath (Join-Path $ProjectRoot "example_data\images\example-5.jpg") -Destination $WindowsImages
+Copy-Item -LiteralPath (Join-Path $ProjectRoot "example_data\images\*") -Destination $WindowsImages
 Copy-Item -LiteralPath (Join-Path $ProjectRoot "example_data\analysis_settings.csv") -Destination (Join-Path $WindowsStage "user_input\analysis_settings.csv") -Force
 Copy-Item -LiteralPath (Join-Path $ProjectRoot "example_data\standard_concentrations.csv") -Destination (Join-Path $WindowsStage "user_input\standard_concentrations.csv") -Force
 Copy-Item -LiteralPath (Join-Path $ProjectRoot "example_data\DATA_LICENSE.txt") -Destination (Join-Path $WindowsStage "EXAMPLE_DATA_LICENSE.txt")

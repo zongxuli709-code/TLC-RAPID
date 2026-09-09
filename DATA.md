@@ -35,7 +35,7 @@ Thresholds and model choices must be selected using the training and validation 
 ## Public artifacts
 
 No public archive or DOI is currently available for the development and test
-datasets. The release provides only one non-identifying workflow example,
+datasets. The release provides five non-identifying workflow examples,
 its applied-amount mapping, aggregate independent-test ground truth, and the
 evaluation commands in `REPRODUCIBILITY.md`.
 

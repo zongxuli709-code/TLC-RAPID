@@ -1,24 +1,23 @@
 # TLC-RAPID example data
 
-This directory contains one release demonstration image and four retained
-diagnostic images supplied by the TLC-RAPID authors. Only `example-5.jpg`,
-which passes the default quadratic-calibration safety checks, is copied into
-the Windows user package. Images 1–4 are retained for investigation because
-their recorded standard assignments produce non-invertible quadratic fits;
-they are not configured as successful workflow examples.
+This directory contains five demonstration images supplied by the TLC-RAPID
+authors. Each image has its own recorded standard concentrations.
 
 ## Files
 
-- `images/example-5.jpg`: visible-light berberine example. The five working
-  concentrations (0.50, 0.75, 1.00, 1.50, and 2.00 mg/mL) were each applied
-  at 3 μL. The software input is therefore 1.50, 2.25, 3.00, 4.50, and
-  6.00 μg/band from left to right.
+- `images/example-1.jpg` through `images/example-5.jpg`: five demonstration
+  images. Their plate-specific standard concentrations are stored in
+  `standard_concentrations.csv`.
 - `standard_concentrations.csv`: per-image applied-amount mapping.
-- `analysis_settings.csv`: demonstration settings with quadratic quantification; linear regression is available as an alternative.
-- `images/example-1.jpg` through `example-4.jpg`: diagnostic images excluded
-  from the Windows user package. They require review of standard-band
-  assignment and ROI selection and must not be presented as successful
-  paper-reproduction examples.
+- `analysis_settings.csv`: demonstration settings with quadratic as the
+  requested method.
+
+For quadratic analysis, TLC-RAPID first evaluates the non-negative roots inside
+the image-specific standard range. If two roots remain, it selects the root
+closest to a local estimate from the same-plate standards. If no root can be
+selected, it records a linear fallback and, if needed, a same-plate response
+interpolation fallback. The exported root, method, reason, and range fields
+identify how every numeric estimate was obtained.
 
 ## Try the example
 
