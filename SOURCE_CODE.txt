@@ -1,13 +1,15 @@
-TLC-RAPID corresponding source
+TLC-RAPID v1.0
 
-Versioned source archives and tagged releases are published at:
-https://github.com/zongxuli709-code/TLC-RAPID/releases
+This package was built from commit:
+67e8d3e1d08f5324afcb0ad919adefdaa94c39ee
+
+The complete corresponding source archive distributed alongside this package is:
+TLC-RAPID-v1.0-GitHub-source.zip
+
+Release page:
+https://github.com/zongxuli709-code/TLC-RAPID/releases/tag/v1.0
 
 Repository:
 https://github.com/zongxuli709-code/TLC-RAPID
 
-The Windows release builder replaces this generic notice in each release package
-with the exact tag, 40-character commit, source ZIP filename, and release URL.
-
 License: GNU AGPL-3.0-only. See LICENSE and LICENSING.md.
-

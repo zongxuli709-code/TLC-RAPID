@@ -1,4 +1,4 @@
-parameter,value,description
+﻿parameter,value,description
 model_weights,weights/best.pt,Segmentation model weights (relative to app root)
 dataset_config,weights/boCenColor.yaml,Class names configuration file
 standard_count,5,Number of reference-standard spots per image

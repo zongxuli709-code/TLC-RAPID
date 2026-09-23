@@ -24,8 +24,9 @@ class ReleaseBlockerTests(unittest.TestCase):
 
     def test_equal_to_default_is_still_an_explicit_image_override(self) -> None:
         values = [0.125, 0.2, 0.25, 0.5, 1.0]
-        concentrations = {"_default": values, "example-2.jpg": values}
-        self.assertTrue(has_explicit_concentrations(concentrations, "example-2.jpg"))
+        image_name = "Lonicerae Flos.jpg"
+        concentrations = {"_default": values, image_name: values}
+        self.assertTrue(has_explicit_concentrations(concentrations, image_name))
         self.assertFalse(has_explicit_concentrations(concentrations, "unlisted.jpg"))
 
     def test_public_version_and_default_method_are_stable(self) -> None:
@@ -151,8 +152,14 @@ class ReleaseBlockerTests(unittest.TestCase):
     def test_all_five_release_examples_are_present_and_configured(self) -> None:
         project_root = Path(__file__).resolve().parents[1]
         images = project_root / "example_data" / "images"
-        expected = {f"example-{index}.jpg" for index in range(1, 6)}
-        self.assertEqual({path.name for path in images.glob("example-*.jpg")}, expected)
+        expected = {
+            "Arnebiae Radix.jpg",
+            "Phellodendri Chinensis Cortex.jpg",
+            "Lonicerae Flos.jpg",
+            "Lonicerae Japonicae Flos.jpg",
+            "Gentianae Macrophyllae Radix.jpg",
+        }
+        self.assertEqual({path.name for path in images.glob("*.jpg")}, expected)
         with (project_root / "example_data" / "standard_concentrations.csv").open(
             newline="", encoding="utf-8-sig"
         ) as handle:

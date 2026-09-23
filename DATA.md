@@ -4,10 +4,10 @@ TLC-RAPID does not include private experimental images in the source repository 
 
 ## Bundled workflow example
 
-One anonymized demonstration image is distributed in `example_data/` with
-its per-image standard applied amounts and an explicit data license. The
-release builder copies it into `user_input/` so a new user can run the
-workflow immediately. It is not part of the training, validation, or
+Five anonymized demonstration images are distributed in `example_data/` with
+their per-image standard applied amounts and an explicit data license. The
+release builder copies them into `user_input/` so a new user can run the
+workflow immediately. They are not part of the training, validation, or
 independent test sets and must not be used as a performance benchmark. See
 `example_data/README.md` and `example_data/DATA_LICENSE.txt`.
 

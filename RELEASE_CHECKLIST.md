@@ -18,7 +18,7 @@
 - [x] The release builder produces a versioned GitHub source ZIP and a Windows
   x64 executable ZIP, each with `SOURCE_CODE.txt`, `VERSION.txt`, and an
   internal SHA-256 manifest.
-- [x] Two anonymized workflow examples have per-image concentration mappings,
+- [x] Five anonymized workflow examples have per-image concentration mappings,
   a data license, and no embedded personal metadata.
 
 ## Author records still requiring confirmation
