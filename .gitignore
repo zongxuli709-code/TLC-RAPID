@@ -17,5 +17,6 @@ user_input/images/*
 build_log.txt
 run_log.txt
 error_log.txt
-weights/*.pt
+# weights/*.pt
+!weights/best.pt
 !weights/.gitkeep
